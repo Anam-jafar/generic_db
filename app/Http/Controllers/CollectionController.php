@@ -74,19 +74,21 @@ class CollectionController extends Controller
         return view('collections.create');
     }
 
-    // Store a new collection
     public function store(Request $request)
     {
         $validated = $request->validate([
             'collection_name' => 'required|string|unique:collections,collection_name',
             'fields' => 'required|array|min:1',
-            'fields.*.name' => 'required|string|distinct', 
+            'fields.*.name' => 'required|string|distinct',
             'fields.*.type' => 'required|string|in:string,integer,date,boolean',
+            'fields.*.unique' => 'sometimes|boolean',
+            'fields.*.nullable' => 'sometimes|boolean',
+            'fields.*.default' => 'nullable',
         ]);
-
+    
         $collectionName = $validated['collection_name'];
         $fields = $validated['fields'];
-
+    
         // Add default fields to the fields array
         $defaultFields = [
             ['name' => 'uid', 'type' => 'string'],
@@ -94,17 +96,17 @@ class CollectionController extends Controller
             ['name' => 'created_at', 'type' => 'date'],
             ['name' => 'updated_at', 'type' => 'date'],
         ];
-
+    
         // Merge the default fields with user-defined fields
         $fieldDefinitions = array_merge($fields, $defaultFields);
-
+    
         try {
             $mongoClient = DB::connection('mongodb')->getMongoClient();
             $database = $mongoClient->selectDatabase('generic_data');
-
+    
             // Create the collection in MongoDB
             $database->createCollection($collectionName);
-
+    
             // Store the collection metadata using Eloquent
             CollectionMetadata::create([
                 'collection_name' => $collectionName,
@@ -112,12 +114,13 @@ class CollectionController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-
+    
             return redirect()->route('collections.index')->with('success', 'Collection created successfully!');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to create collection: ' . $e->getMessage());
         }
     }
+    
 
     // Show a collection
     public function show(Request $request, $collectionName)
@@ -158,15 +161,22 @@ class CollectionController extends Controller
 
         return view('collections.show', compact('collectionName', 'documents', 'showAll', 'total', 'perPage', 'search', 'pagination', 'headers'));
     }
-
+    
+    
     private function insertDataIntoCollection($collectionName, array $headers, array $rows)
     {
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         $fieldDefinitions = $collectionMetadata ? $collectionMetadata->fields : [];
     
         $fieldTypes = [];
+        $fieldConstraints = [];
         foreach ($fieldDefinitions as $field) {
             $fieldTypes[$field['name']] = $field['type'];
+            $fieldConstraints[$field['name']] = [
+                'unique' => $field['unique'] ?? false,
+                'nullable' => $field['nullable'] ?? false,
+                'default' => $field['default'] ?? null,
+            ];
         }
     
         $insertData = [];
@@ -174,33 +184,58 @@ class CollectionController extends Controller
             $insertRow = array_combine($headers, $row);
             $insertRow['deleted'] = 0;
     
-            // Convert the current time to MongoDB UTCDateTime format
-            $createdAt = Carbon::now(); // Get the current time as a Carbon instance
-            $updatedAt = Carbon::now(); // Get the current time as a Carbon instance
+            // Handle created_at and updated_at fields
+            $createdAt = Carbon::now();
+            $updatedAt = Carbon::now();
+            $insertRow['created_at'] = new UTCDateTime($createdAt);
+            $insertRow['updated_at'] = new UTCDateTime($updatedAt);
     
-            // Convert to MongoDB UTCDateTime format
-            $insertRow['created_at'] = new UTCDateTime($createdAt); // Convert to UTCDateTime
-            $insertRow['updated_at'] = new UTCDateTime($updatedAt); // Convert to UTCDateTime
-    
-            // Validation for other fields
+            // Apply constraints and validations
             foreach ($insertRow as $field => $value) {
+                if (isset($fieldConstraints[$field])) {
+                    $constraints = $fieldConstraints[$field];
+    
+                    // Check for 'nullable' constraint
+                    if ($value === null && !$constraints['nullable']) {
+                        throw new \Exception("Field '$field' cannot be null.");
+                    }
+    
+                    // Apply 'default' value if necessary
+                    if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
+                        $insertRow[$field] = $constraints['default'];
+                    }
+    
+                    // Check for 'unique' constraint
+                    if ($constraints['unique']) {
+                        $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
+                        if ($existing) {
+                            throw new \Exception("Field '$field' must be unique. The value '$value' already exists.");
+                        }
+                    }
+                }
+    
+                // Type validation
                 if (isset($fieldTypes[$field])) {
                     $expectedType = $fieldTypes[$field];
                     if ($expectedType == 'integer' && !is_numeric($value)) {
                         throw new \Exception("Field '$field' must be an integer.");
+                    } elseif ($expectedType == 'boolean' && !is_bool($value)) {
+                        throw new \Exception("Field '$field' must be a boolean.");
+                    } elseif ($expectedType == 'date' && !$value instanceof UTCDateTime) {
+                        throw new \Exception("Field '$field' must be a valid date.");
                     }
-                    // Skip the date validation here since we are using UTCDateTime for created_at and updated_at
                 }
             }
     
             $insertData[] = $insertRow;
         }
     
+        // Insert data if there is any valid data
         if (!empty($insertData)) {
             DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
         }
     }
-
+    
     // Bulk upload data
     public function bulkUpload(Request $request, $collectionName)
     {
