@@ -20,7 +20,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="/">Generic DB.</a>
-    <a class="navbar-brand" href="#">Create Table</a>
+    <a class="navbar-brand" href="{{ route('collections.create') }}">Create Table</a>
     <div class="collapse navbar-collapse">
         <ul class="navbar-nav ml-auto">
             @if(Auth::check())

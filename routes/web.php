@@ -25,6 +25,12 @@ Route::get('/collections/{collectionName}/download-data', [CollectionController:
 
 
 Route::get('/suggestions', [CollectionController::class, 'suggestCollections'])->name('collections.suggestions');
+// Route to show collection creation form
+Route::get('/create', [CollectionController::class, 'create'])->name('collections.create');
+
+// Route to handle the form submission for creating a new collection
+Route::post('collections/store', [CollectionController::class, 'store'])->name('collections.store');
+
 
 
 

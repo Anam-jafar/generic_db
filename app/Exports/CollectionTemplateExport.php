@@ -3,18 +3,30 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithTitle;
 
-class CollectionTemplateExport implements FromArray
+class CollectionTemplateExport implements FromArray, WithHeadings, WithTitle
 {
-    protected $templateData;
+    protected $data;
 
-    public function __construct(array $templateData)
+    public function __construct(array $data)
     {
-        $this->templateData = $templateData;
+        $this->data = $data;
     }
 
     public function array(): array
     {
-        return $this->templateData;
+        return array_slice($this->data, 1);
+    }
+
+    public function headings(): array
+    {
+        return $this->data[0]; // The first row will be the headers
+    }
+
+    public function title(): string
+    {
+        return 'Collection Data'; // Title for the worksheet
     }
 }

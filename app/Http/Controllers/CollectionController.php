@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
+use App\Models\CollectionMetadata;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use MongoDB\Client as MongoDBClient;
 use App\Exports\CollectionTemplateExport;
-use App\Services\ActivityLogService;
-use App\Models\ActivityLog;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use MongoDB\Client as MongoDBClient;
+use MongoDB\BSON\UTCDateTime;
+use Carbon\Carbon;
+
 
 class CollectionController extends Controller
 {
@@ -22,6 +26,7 @@ class CollectionController extends Controller
         $this->database = (new MongoDBClient)->selectDatabase('generic_data');
     }
 
+    // Display a listing of collections
     public function index(Request $request)
     {
         $search = $request->get('search', '');
@@ -63,183 +68,152 @@ class CollectionController extends Controller
         return view('collections.index', compact('collections'));
     }
 
-    public function suggestCollections(Request $request)
+    // Create a new collection
+    public function create()
     {
-        $search = $request->get('search', '');
-        $mongoClient = DB::connection('mongodb')->getMongoClient();
-        $database = $mongoClient->selectDatabase('generic_data');
-        $collections = $database->listCollections();
-    
-        $excludedCollections = [
-            'password_reset_tokens', 'personal_access_tokens', 'migrations', 'users', 'failed_jobs',
+        return view('collections.create');
+    }
+
+    // Store a new collection
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'collection_name' => 'required|string|unique:collections,collection_name',
+            'fields' => 'required|array|min:1',
+            'fields.*.name' => 'required|string|distinct', 
+            'fields.*.type' => 'required|string|in:string,integer,date,boolean',
+        ]);
+
+        $collectionName = $validated['collection_name'];
+        $fields = $validated['fields'];
+
+        // Add default fields to the fields array
+        $defaultFields = [
+            ['name' => 'uid', 'type' => 'string'],
+            ['name' => 'deleted', 'type' => 'integer'],
+            ['name' => 'created_at', 'type' => 'date'],
+            ['name' => 'updated_at', 'type' => 'date'],
         ];
-    
-        $suggestions = [];
-        foreach ($collections as $collection) {
-            $collectionName = $collection->getName();
-    
-            if (in_array($collectionName, $excludedCollections)) {
-                continue;
-            }
-    
-            if (empty($search) || stripos($collectionName, $search) !== false) {
-                $formattedName = ucwords(str_replace('_', ' ', $collectionName));
-                $suggestions[] = $formattedName;
-            }
+
+        // Merge the default fields with user-defined fields
+        $fieldDefinitions = array_merge($fields, $defaultFields);
+
+        try {
+            $mongoClient = DB::connection('mongodb')->getMongoClient();
+            $database = $mongoClient->selectDatabase('generic_data');
+
+            // Create the collection in MongoDB
+            $database->createCollection($collectionName);
+
+            // Store the collection metadata using Eloquent
+            CollectionMetadata::create([
+                'collection_name' => $collectionName,
+                'fields' => $fieldDefinitions,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return redirect()->route('collections.index')->with('success', 'Collection created successfully!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to create collection: ' . $e->getMessage());
         }
-    
-        return response()->json($suggestions);
     }
 
-    public function ajax(Request $request)
-    {
-        return response()->json("Hello");
-    }
-
-    
+    // Show a collection
     public function show(Request $request, $collectionName)
     {
         $showAll = $request->get('show_all', false);
-        
         $perPage = $request->get('per_page', 10);
-        
         $search = $request->get('search', '');
-    
+
+        // Retrieve collection metadata
+        $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
+        $headers = $collectionMetadata ? $collectionMetadata->fields : [];
+
         $filter = $showAll ? [] : ['deleted' => 0];
-        
-        $query = DB::connection('mongodb')->getCollection($collectionName)
-                    ->find($filter)
-                    ->toArray();
-    
+        $query = DB::connection('mongodb')->getCollection($collectionName)->find($filter)->toArray();
+
         if ($search) {
             $query = array_filter($query, function($document) use ($search) {
                 foreach ($document as $key => $value) {
                     if (strpos((string)$value, $search) !== false) {
-                        return true; 
+                        return true;
                     }
                 }
-                return false; 
+                return false;
             });
         }
-    
-        // Implement pagination
+
         $total = count($query);
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
         $documents = array_slice($query, $offset, $perPage);
-    
-        // Create a simple pagination array for the view
+
         $pagination = [
             'current_page' => $currentPage,
             'last_page' => ceil($total / $perPage),
             'per_page' => $perPage,
             'total' => $total,
         ];
-    
-        // Return the view with the paginated documents and pagination info
-        return view('collections.show', compact('collectionName', 'documents', 'showAll', 'total', 'perPage', 'search', 'pagination'));
-    }
-    
-    
-    
-    
 
-    public function edit($collectionName, $id)
-    {
-        $document = DB::connection('mongodb')->getCollection($collectionName)
-                      ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
-
-        return view('collections.edit', compact('collectionName', 'document'));
+        return view('collections.show', compact('collectionName', 'documents', 'showAll', 'total', 'perPage', 'search', 'pagination', 'headers'));
     }
 
-    public function update(Request $request, $collectionName, $id)
+    private function insertDataIntoCollection($collectionName, array $headers, array $rows)
     {
-        $request->validate([
-            'data' => 'required|array',
-        ]);
-
-        $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
-        
-        DB::connection('mongodb')->getCollection($collectionName)
-            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => $request->input('data')]);
-
-        ActivityLogService::log('update', $collectionName, $documentBefore);
-
-        return redirect()->route('collections.show', $collectionName)->with('success', 'Document updated successfully.');
-    }
-
-    public function destroy($collectionName, $id)
-    {
-        $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
-
-        DB::connection('mongodb')->getCollection($collectionName)
-            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => ['deleted' => 1]]);
-
-        ActivityLogService::log('delete', $collectionName, $documentBefore);
-
-        return redirect()->route('collections.show', $collectionName)->with('success', 'Document deleted successfully.');
-    }
-
-    public function download($collectionName, $includeData = false)
-    {
-        $documents = DB::connection('mongodb')->getCollection($collectionName)
-                        ->find(['deleted' => 0])
-                        ->toArray();
-        
-        $headers = $documents ? array_keys($documents[0]->getArrayCopy()) : [];
-        $headers = array_filter($headers, fn($key) => $key !== '_id');
-
-        $excelData = [$headers];
-
-        if ($includeData) {
-            foreach ($documents as $document) {
-                $row = [];
-                foreach ($headers as $header) {
-                    $row[] = $document[$header] ?? '';
-                }
-                $excelData[] = $row;
-            }
+        $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
+        $fieldDefinitions = $collectionMetadata ? $collectionMetadata->fields : [];
+    
+        $fieldTypes = [];
+        foreach ($fieldDefinitions as $field) {
+            $fieldTypes[$field['name']] = $field['type'];
         }
-
-        return Excel::download(new \App\Exports\CollectionTemplateExport($excelData), $collectionName . ($includeData ? '_data.xlsx' : '_template.xlsx'));
+    
+        $insertData = [];
+        foreach ($rows as $row) {
+            $insertRow = array_combine($headers, $row);
+            $insertRow['deleted'] = 0;
+    
+            // Convert the current time to MongoDB UTCDateTime format
+            $createdAt = Carbon::now(); // Get the current time as a Carbon instance
+            $updatedAt = Carbon::now(); // Get the current time as a Carbon instance
+    
+            // Convert to MongoDB UTCDateTime format
+            $insertRow['created_at'] = new UTCDateTime($createdAt); // Convert to UTCDateTime
+            $insertRow['updated_at'] = new UTCDateTime($updatedAt); // Convert to UTCDateTime
+    
+            // Validation for other fields
+            foreach ($insertRow as $field => $value) {
+                if (isset($fieldTypes[$field])) {
+                    $expectedType = $fieldTypes[$field];
+                    if ($expectedType == 'integer' && !is_numeric($value)) {
+                        throw new \Exception("Field '$field' must be an integer.");
+                    }
+                    // Skip the date validation here since we are using UTCDateTime for created_at and updated_at
+                }
+            }
+    
+            $insertData[] = $insertRow;
+        }
+    
+        if (!empty($insertData)) {
+            DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
+        }
     }
 
+    // Bulk upload data
     public function bulkUpload(Request $request, $collectionName)
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,csv,xls',
         ]);
-    
+
         $path = $request->file('file')->store('uploads');
         $data = Excel::toArray([], storage_path("app/{$path}"));
         $rows = $data[0];
 
-        
-    
         $headers = array_shift($rows); // Remove header row
-    
-        // $errors = [];
-    
-        // foreach ($rows as $index => $row) {
-        //     if (strlen($row[0]) > 16) {
-        //         $errors[] = "Row " . ($index + 2) . ": 'Brand' length exceeds 16 characters.";
-        //     }
-        //     if (strlen($row[1]) > 32) {
-        //         $errors[] = "Row " . ($index + 2) . ": 'Model' length exceeds 32 characters.";
-        //     }
-        //     if (!is_numeric($row[2])) {
-        //         $errors[] = "Row " . ($index + 2) . ": 'CC' must be an integer.";
-        //     }
-        // }
-    
-        // if (!empty($errors)) {
-        //     Storage::delete($path);
-        //     Log::error('Data import validation failed: ' . implode(', ', $errors));
-        //     return redirect()->back()->with('error', 'Data import failed due to validation errors: <br>' . implode('<br>', $errors));
-        // }
-    
+
         try {
             $this->insertDataIntoCollection($collectionName, $headers, $rows);
             ActivityLogService::log('Insertion', $collectionName, 'Bulk Upload from Excel sheet');
@@ -249,39 +223,62 @@ class CollectionController extends Controller
         } finally {
             Storage::delete($path);
         }
-    
+
         return redirect()->back()->with('success', 'Data imported successfully.');
     }
 
-    private function insertDataIntoCollection($collectionName, array $headers, array $rows)
+    public function download($collectionName, $includeData = false)
     {
-        $insertData = [];
-        foreach ($rows as $row) {
-            $insertRow = array_combine($headers, $row);
-            $insertRow['deleted'] = 0; // Ensure deleted is set to 0 for new data
-            $insertData[] = $insertRow;
+        // Fetch the collection metadata
+        $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
+                                ->findOne(['collection_name' => $collectionName]);
+    
+        if (!$collectionMetadata) {
+            return redirect()->back()->with('error', 'Collection metadata not found.');
         }
-
-        if (!empty($insertData)) {
-            DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
+    
+        // Convert BSONArray to a plain PHP array using iterator_to_array
+        $fields = iterator_to_array($collectionMetadata['fields']);
+    
+        // Extract the headers from the metadata fields
+        $headers = array_map(function ($field) {
+            return $field['name']; // Extract field names
+        }, $fields);
+    
+        // Exclude certain fields (e.g., _id, deleted, created_at, updated_at)
+        $headers = array_filter($headers, fn($key) => !in_array($key, ['_id', 'deleted', 'created_at', 'updated_at']), ARRAY_FILTER_USE_KEY);
+    
+        // If including data, fetch documents from the specified collection
+        if ($includeData) {
+            $documents = DB::connection('mongodb')->getCollection($collectionName)
+                            ->find(['deleted' => 0])
+                            ->toArray();
+    
+            $excelData = [$headers]; // Start with headers as the first row
+    
+            foreach ($documents as $document) {
+                $row = [];
+                foreach ($headers as $header) {
+                    // Add the document field value or empty if not set
+                    // Make sure the field exists in the document
+                    $row[] = $document[$header] ?? '';
+                }
+                $excelData[] = $row;
+            }
+        } else {
+            // If not including data, just provide the headers
+            $excelData = [$headers];
         }
+    
+        // Generate the Excel export and download it
+        return Excel::download(new CollectionTemplateExport($excelData), 
+            $collectionName . ($includeData ? '_data.xlsx' : '_template.xlsx'));
     }
+    
 
     public function activityLogs()
     {
         $logs = ActivityLog::orderBy('timestamp', 'desc')->get();
         return view('activity_logs.index', compact('logs'));
-    }
-
-    public function showWarning()
-    {
-        session()->forget('hide_warning');
-        return response()->json(['show' => !session()->get('hide_warning', false)]);
-    }
-    
-    public function hideWarning()
-    {
-        session(['hide_warning' => true]);
-        return response()->json(['status' => 'success']);
     }
 }

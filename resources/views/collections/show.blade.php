@@ -38,27 +38,27 @@
 
     <!-- Search form -->
     <div class="col-md-5 p-0">
-
         <form method="GET" action="{{ route('collections.show', $collectionName) }}" class="mb-3">
             <div class="input-group">
                 <input type="text" name="search" value="{{ $search }}" class="form-control me-2" placeholder="Search..." style="width: 50%;">
                 <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </form>
-
     </div>
 
     <table class="table table-bordered mt-3">
         <thead>
             <tr>
                 <th>#</th> <!-- Index column -->
-                @if (isset($documents[0]))
-                    @foreach (array_keys($documents[0]->getArrayCopy()) as $key)
-                        @if ($key !== '_id')
-                            <th>{{ $key }}</th>
+
+                @if (isset($headers))
+                    @foreach ($headers as $field)
+                        @if ($field['name'] !== 'created_at' && $field['name'] !== 'updated_at') <!-- Exclude created_at and updated_at -->
+                            <th>{{ $field['name'] }}</th>
                         @endif
                     @endforeach
                 @endif
+
                 <th>Actions</th>
             </tr>
         </thead>
@@ -66,11 +66,21 @@
             @foreach ($documents as $index => $document)
                 <tr>
                     <td>{{ ($pagination['current_page'] - 1) * $pagination['per_page'] + $index + 1 }}</td> <!-- Index value -->
+
                     @foreach ($document->getArrayCopy() as $key => $value)
-                        @if ($key !== '_id')
-                            <td>{{ $value }}</td>
+                        @if ($key !== '_id' && $key !== 'created_at' && $key !== 'updated_at') <!-- Exclude created_at and updated_at -->
+                            <td>
+                                @if (is_array($value) || is_object($value))
+                                    <!-- If the value is an array or object, convert it to JSON string -->
+                                    {{ json_encode($value) }}
+                                @else
+                                    <!-- Otherwise, just print the value -->
+                                    {{ $value }}
+                                @endif
+                            </td>
                         @endif
                     @endforeach
+
                     <td>
                         <form method="POST" action="{{ route('collections.destroy', [$collectionName, $document['_id']]) }}" onsubmit="return confirm('Are you sure you want to delete this item?');" class="d-inline">
                             @csrf
