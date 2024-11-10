@@ -1,0 +1,50 @@
+.collection-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.collection-pagination div {
+    flex: 1;
+    text-align: center;
+}
+
+.collection-pagination .pagination-info {
+    text-align: left;
+}
+
+.collection-pagination .pagination-controls {
+    text-align: center;
+}
+
+.collection-pagination .per-page-form {
+    text-align: right;
+}
+.per-page-form {
+    align-items: center;
+    margin-top: 0; /* Adjust if you need different margin */
+    
+
+
+}
+.per-page-form label{
+    margin-top: 4px;
+}
+
+.per-page-form select {
+    padding: 4px 8px;
+    font-size: 0.9em; /* Smaller font size */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 70px;
+    float: right;
+
+
+}
+
+.pagination-btn {
+    background-color: #0C2D57 !important;
+    color: white !important;
+}

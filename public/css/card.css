@@ -1,0 +1,45 @@
+.search-res-card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Reduced gap between cards */
+    width: 100%;
+    text-decoration: none;
+}
+
+.search-res-card {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row !important; 
+    /* align-items: center; */
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 8px 15px; /* Reduced padding inside cards */
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+
+.search-res-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    background-color: #e3e8ff;
+    text-decoration: none;
+
+}
+
+.search-res-card h2 {
+    margin: 0;
+    color: black;
+    font-size: 1.25rem;
+    flex: 1; /* Make the name take up as much space as possible */
+
+}
+
+.search-res-card p {
+    margin: 0;
+    color: black;
+    font-size: 1rem;
+
+}

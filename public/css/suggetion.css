@@ -1,0 +1,35 @@
+/* styles/suggestions.css */
+.suggestions-container {
+    position: absolute;        /* Position relative to the input field */
+    top: 100%;                 /* Position directly below the input */
+    left: 0;
+    right: 0;
+    background-color: #fff;    /* White background for the dropdown */
+    border: 1px solid #ccc;    /* Border to outline the suggestions box */
+    border-radius: 4px;        /* Rounded corners */
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    max-height: 200px;         /* Limit the height of the dropdown */
+    overflow-y: auto;          /* Add a scroll bar if the list is too long */
+    z-index: 1000;             /* Ensure the suggestions are on top */
+    display: none;             /* Initially hidden */
+}
+
+.suggestions-container ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.suggestions-container ul li {
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.suggestions-container ul li:hover {
+    background-color: #f0f0f0; /* Highlight suggestions on hover */
+}
+
+.suggestions-container ul li.selected {
+    background-color: #e0e0e0; /* Highlight the selected suggestion */
+}

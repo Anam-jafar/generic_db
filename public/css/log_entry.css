@@ -1,0 +1,41 @@
+
+/* Select styling */
+.entries-select {
+    padding: 10px 15px; /* Same padding as pagination buttons */
+    background-color: #3498db; /* Same background as pagination */
+    color: #fff; /* White text for the select */
+    border: none; /* Remove default border */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor */
+    font-size: 16px; /* Same font size as pagination buttons */
+    transition: background-color 0.3s ease; /* Smooth transition */
+    appearance: none; /* Remove default dropdown arrow */
+    -webkit-appearance: none; /* Remove default dropdown arrow for Safari */
+    -moz-appearance: none; /* Remove default dropdown arrow for Firefox */
+}
+
+/* Style for the select options */
+.entries-select option {
+    background-color: #fff; /* White background for options */
+    color: #000; /* Black text for options */
+}
+
+/* Align select with pagination */
+.entries-select {
+    align-self: center; /* Center align the select vertically */
+}
+
+/* Add custom arrow for the select */
+.entries-select::after {
+    content: '▼'; /* Custom dropdown arrow */
+    position: absolute;
+    right: 10px; /* Position it within the select */
+    top: 50%; /* Center it vertically */
+    transform: translateY(-50%); /* Adjust for vertical centering */
+    pointer-events: none; /* Prevent interaction */
+}
+
+/* Optional: Style for hovering over options in select */
+.entries-select:hover {
+    background-color: #2980b9; /* Change color on hover */
+}

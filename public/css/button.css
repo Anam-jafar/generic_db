@@ -1,0 +1,85 @@
+/* .select-button {
+    position: absolute;
+    bottom: 25px;
+    right: 25px;
+    padding: 12px 24px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.edit-button {
+
+    padding: 4px 8px;
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+        text-decoration: none;
+
+}
+.delete-button {
+
+    padding: 4px 8px;
+    background-color: red;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.select-button:hover {
+    background-color: #2980b9;
+    transform: scale(1.05);
+}
+
+.bulk-upload button {
+    padding: 10px 15px;
+    border-radius: 5px;
+    border: 1px solid #3498db;
+    background-color: #3498db;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.bulk-upload button:hover {
+    background-color: #2980b9;
+} */
+
+.gdb-auth-button{
+    background-color: #0C2D57 !important;
+    text-decoration: none;
+    color: white !important;
+    padding: 10px 16px !important; /* Optional padding for button-like appearance */
+    border-radius: 25px; /* Optional rounded corners */
+    cursor: pointer; /* Indicate clickable element */
+    display: inline-block; /* Ensures block-like behavior for spacing */
+    margin-top : 20px;
+
+ 
+}
+
+.gdb-button{
+    background-color: #0C2D57 !important;
+    text-decoration: none;
+    color: white !important;
+    padding: 10px 16px !important; /* Optional padding for button-like appearance */
+    border-radius: 25px; /* Optional rounded corners */
+    cursor: pointer; /* Indicate clickable element */
+    display: inline-block; /* Ensures block-like behavior for spacing */
+ 
+}

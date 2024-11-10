@@ -1,0 +1,153 @@
+/* Container Styling */
+.collection-form-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto; /* Adds top margin */
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Increases shadow intensity */
+    padding: 20px;
+    position: relative;
+}
+
+/* Header Styling */
+.collection-form-header {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    
+}
+
+/* Body Styling */
+.collection-form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Collection Name Input */
+.form-group .label-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select {
+    height: 40px; /* Set the desired height */
+    font-size: 16px; /* Slightly larger font size */
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+
+/* Fields Section */
+.field-group {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #ccc;
+}
+
+.field-inputs {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.field-name,
+.field-type {
+    width: 48%;
+}
+
+/* Field Options Container */
+.field-options {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.field-options .label-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.form-check-inline-container {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.form-check-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-check-input {
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.default-value {
+    width: 200px;
+    padding: 10px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    vertical-align: middle;
+}
+
+/* Add New Field Button */
+.add-field-button {
+    background-color: #0C2D57;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    position: absolute;
+    bottom: 85px;
+    right: 20px;
+    transition: background-color 0.3s ease;
+}
+
+
+/* Create Collection Button */
+button.btn-primary {
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s ease;
+    margin-top: 20px;
+}
+
+button.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.info-icon {
+    cursor: pointer;
+    margin-left: 5px;
+    color: #007bff;
+}
+
+.info-text {
+    display: none; /* Hidden by default */
+    font-size: 12px;
+    color: green;
+    margin-left: 10px;
+}
+

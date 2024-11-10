@@ -26,47 +26,59 @@ class CollectionController extends Controller
         $this->database = (new MongoDBClient)->selectDatabase('generic_data');
     }
 
-    // Display a listing of collections
-    public function index(Request $request)
-    {
-        $search = $request->get('search', '');
-        $mongoClient = DB::connection('mongodb')->getMongoClient();
-        $database = $mongoClient->selectDatabase('generic_data');
-        $collections = $database->listCollections();
+// Display a listing of collections
+public function index(Request $request)
+{
+    $search = $request->get('search', '');
+    $perPage = $request->get('per_page', 25);
+    
+    $mongoClient = DB::connection('mongodb')->getMongoClient();
+    $database = $mongoClient->selectDatabase('generic_data');
+    $collections = $database->listCollections();
 
-        $excludedCollections = [
-            'password_reset_tokens',
-            'personal_access_tokens',
-            'migrations',
-            'users',
-            'failed_jobs',
-            'activity_logs',
-        ];
+    $excludedCollections = [
+        'password_reset_tokens',
+        'personal_access_tokens',
+        'migrations',
+        'users',
+        'failed_jobs',
+        'activity_logs',
+    ];
 
-        $collectionsArray = [];
-        foreach ($collections as $collection) {
-            $collectionName = $collection->getName();
-            if (in_array($collectionName, $excludedCollections)) {
-                continue;
-            }
-            $collectionSize = DB::connection('mongodb')
-                                ->getCollection($collectionName)
-                                ->countDocuments(['deleted' => 0]);
-
-            if (empty($search) || stripos($collectionName, $search) !== false) {
-                $collectionsArray[] = ['name' => $collectionName, 'size' => $collectionSize];
-            }
+    $collectionsArray = [];
+    foreach ($collections as $collection) {
+        $collectionName = $collection->getName();
+        if (in_array($collectionName, $excludedCollections)) {
+            continue;
         }
+        $collectionSize = DB::connection('mongodb')
+                            ->getCollection($collectionName)
+                            ->countDocuments(['deleted' => 0]);
 
-        $perPage = 10;
-        $currentPage = LengthAwarePaginator::resolveCurrentPage();
-        $currentItems = array_slice($collectionsArray, ($currentPage - 1) * $perPage, $perPage);
-        $collections = new LengthAwarePaginator($currentItems, count($collectionsArray), $perPage, $currentPage, [
-            'path' => LengthAwarePaginator::resolveCurrentPath(),
-        ]);
-
-        return view('collections.index', compact('collections'));
+        if (empty($search) || stripos($collectionName, $search) !== false) {
+            $collectionsArray[] = ['name' => $collectionName, 'size' => $collectionSize];
+        }
     }
+
+    $total = count($collectionsArray);
+    $currentPage = $request->get('page', 1);
+    $offset = ($currentPage - 1) * $perPage;
+    $currentItems = array_slice($collectionsArray, $offset, $perPage);
+
+    $pagination = [
+        'current_page' => $currentPage,
+        'last_page' => ceil($total / $perPage),
+        'per_page' => $perPage,
+        'total' => $total,
+    ];
+
+    $collections = new LengthAwarePaginator($currentItems, $total, $perPage, $currentPage, [
+        'path' => LengthAwarePaginator::resolveCurrentPath(),
+    ]);
+
+    return view('collections.index', compact('collections', 'pagination', 'search', 'perPage'));
+}
+
 
     // Create a new collection
     public function create()
@@ -121,46 +133,47 @@ class CollectionController extends Controller
         }
     }
     
-
-    // Show a collection
     public function show(Request $request, $collectionName)
     {
         $showAll = $request->get('show_all', false);
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->get('per_page', 25);
         $search = $request->get('search', '');
-
+    
         // Retrieve collection metadata
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         $headers = $collectionMetadata ? $collectionMetadata->fields : [];
-
+    
         $filter = $showAll ? [] : ['deleted' => 0];
         $query = DB::connection('mongodb')->getCollection($collectionName)->find($filter)->toArray();
-
+    
         if ($search) {
+            // Perform case-insensitive search
             $query = array_filter($query, function($document) use ($search) {
                 foreach ($document as $key => $value) {
-                    if (strpos((string)$value, $search) !== false) {
+                    // Convert both the document value and search term to lowercase for case-insensitive comparison
+                    if (strpos(strtolower((string)$value), strtolower($search)) !== false) {
                         return true;
                     }
                 }
                 return false;
             });
         }
-
+    
         $total = count($query);
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
         $documents = array_slice($query, $offset, $perPage);
-
+    
         $pagination = [
             'current_page' => $currentPage,
             'last_page' => ceil($total / $perPage),
             'per_page' => $perPage,
             'total' => $total,
         ];
-
+    
         return view('collections.show', compact('collectionName', 'documents', 'showAll', 'total', 'perPage', 'search', 'pagination', 'headers'));
     }
+    
     
     
     private function insertDataIntoCollection($collectionName, array $headers, array $rows)
@@ -311,9 +324,123 @@ class CollectionController extends Controller
     }
     
 
-    public function activityLogs()
+    public function activityLogs(Request $request)
     {
-        $logs = ActivityLog::orderBy('timestamp', 'desc')->get();
-        return view('activity_logs.index', compact('logs'));
+        // Define the number of records per page (default is 25 if not specified)
+        $perPage = $request->get('per_page', 25);
+    
+        // Get the logs with pagination
+        $logs = ActivityLog::orderBy('timestamp', 'desc')->paginate($perPage);
+    
+        // Pass pagination data to the view
+        return view('activity_logs.index', [
+            'logs' => $logs,
+            'pagination' => $logs->toArray(),  // Convert the pagination object to an array
+            'perPage' => $perPage,
+        ]);
+    }
+    
+    public function suggestCollections(Request $request)
+    {
+        $search = $request->get('search', '');
+        $mongoClient = DB::connection('mongodb')->getMongoClient();
+        $database = $mongoClient->selectDatabase('generic_data');
+        $collections = $database->listCollections();
+    
+        $excludedCollections = [
+            'password_reset_tokens', 'personal_access_tokens', 'migrations', 'users', 'failed_jobs',
+        ];
+    
+        $suggestions = [];
+        foreach ($collections as $collection) {
+            $collectionName = $collection->getName();
+    
+            if (in_array($collectionName, $excludedCollections)) {
+                continue;
+            }
+    
+            if (empty($search) || stripos($collectionName, $search) !== false) {
+                $suggestions[] = $collectionName;
+            }
+        }
+    
+        return response()->json($suggestions);
+    }
+
+    public function edit($collectionName, $id)
+    {
+        // Fetch the document to be edited
+        $document = DB::connection('mongodb')->getCollection($collectionName)
+                          ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+    
+        // Fetch the field metadata for the collection
+        $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
+        if (!$collectionMetadata) {
+            return redirect()->route('collections.show', $collectionName)->with('error', 'Collection metadata not found.');
+        }
+    
+        $fieldDefinitions = $collectionMetadata->fields;
+        $fieldTypes = [];
+        foreach ($fieldDefinitions as $field) {
+            $fieldTypes[$field['name']] = $field['type'];
+        }
+    
+        return view('collections.edit', compact('collectionName', 'document', 'fieldTypes'));
+    }
+    
+
+    public function update(Request $request, $collectionName, $id)
+    {
+        $request->validate([
+            'data' => 'required|array',
+        ]);
+
+        $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
+                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+        
+        DB::connection('mongodb')->getCollection($collectionName)
+            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => $request->input('data')]);
+
+        ActivityLogService::log('update', $collectionName, $documentBefore);
+
+        return redirect()->route('collections.show', $collectionName)->with('success', 'Document updated successfully.');
+    }
+
+    
+
+    public function destroy($collectionName, $id)
+    {
+        $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
+                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+
+        DB::connection('mongodb')->getCollection($collectionName)
+            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => ['deleted' => 1]]);
+
+        ActivityLogService::log('delete', $collectionName, $documentBefore);
+
+        return redirect()->route('collections.show', $collectionName)->with('success', 'Document deleted successfully.');
+    }
+
+
+    public function restore(Request $request, $collectionName, $id)
+    {
+
+        $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
+                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id)]);
+        
+        DB::connection('mongodb')->getCollection($collectionName)
+        ->updateOne(
+            ['_id' => new \MongoDB\BSON\ObjectId($id)],
+            [
+                '$set' => [
+                    'deleted' => 0,  // Restore the document (set 'deleted' to 0)
+                    'updated_at' => new UTCDateTime(Carbon::now()),  // Update the 'updated_at' timestamp
+                ]
+            ]
+        );
+
+        ActivityLogService::log('restore', $collectionName, $documentBefore);
+
+        return redirect()->route('collections.show', $collectionName)->with('success', 'Document restored successfully.');
     }
 }

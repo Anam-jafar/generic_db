@@ -1,0 +1,127 @@
+
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    .container {
+        max-width: 800px;
+        width: 100%;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        color: #2c3e50;
+        font-size: 2.5rem;
+        font-weight: 600;
+    }
+
+
+
+    .card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px; /* Reduced gap between cards */
+        width: 100%;
+    }
+
+    .card {
+        display: flex;
+        justify-content: space-between;
+        flex-direction: row; 
+        /* align-items: center; */
+        background-color: #fff;
+        border-radius: 10px;
+        padding: 15px; /* Reduced padding inside cards */
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .card h2 {
+        margin: 0;
+        color: #2c3e50;
+        font-size: 1.25rem;
+        flex: 1; /* Make the name take up as much space as possible */
+    }
+
+    .card a {
+    text-decoration: none; /* Remove underline from links inside card */
+    color: inherit; /* Ensure the link color inherits from its parent (optional) */
+}
+
+.card:hover a {
+    text-decoration: none; /* Remove underline from links inside card */
+    color: inherit; /* Ensure the link color inherits from its parent (optional) */
+}
+
+
+
+    .card p {
+        margin: 0;
+        color: #7f8c8d;
+        font-size: 1rem;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        margin-top: 40px;
+        gap: 10px;
+    }
+
+    .pagination > * {
+        padding: 10px 15px;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .pagination > *:hover:not(.active) {
+        background-color: #2980b9;
+    }
+
+    .pagination > .active {
+        background-color: #2980b9;
+        cursor: default;
+    }
+
+    .pagination > .disabled {
+        background-color: #bdc3c7;
+        cursor: not-allowed;
+    }
+
+    @media (max-width: 768px) {
+        h1 {
+            font-size: 2rem;
+        }
+    }
+

@@ -1,0 +1,59 @@
+.search-form {
+    display: flex !important; /* Make the form a flex container */
+    align-items: center; /* Vertically center items */
+    width: 100%; /* Make the form take full width of its parent */
+    
+}
+.search-container {
+    position: relative;
+    margin-bottom: 40px;
+    width: 100%;
+}
+
+.search-wrapper {
+    display: flex;
+    align-items: center; /* Vertically centers children */
+    background: white;
+    padding: 8px;
+    border-radius: 40px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%; /* Ensures it takes the full width of the parent */
+}
+
+.search-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px; /* Space between icon and input */
+    color: #3f3e3e;
+    flex-shrink: 0; /* Ensures the icon does not shrink */
+    margin-left: 15px;
+}
+
+.search-input {
+    flex: 1; /* Takes up available space */
+    padding: 12px;
+    font-size: 16px;
+    border: none;
+    background: none;
+    outline: none;
+    color: #3f3e3e !important;
+
+}
+
+.search-button {
+    padding: 12px 32px;
+    background-color: #0C2D57;
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    flex-shrink: 0; /* Prevents the button from shrinking */
+    margin-right: 15px;
+}
+
+.search-button:hover {
+    background-color: #18437c;
+}

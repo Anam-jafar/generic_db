@@ -1,0 +1,79 @@
+
+
+/* Activity Log Container */
+.activity-log-container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.activity-log-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.activity-log-header {
+    padding: 10px;
+    background-color: #f4f4f4;
+    font-weight: bold;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.activity-log-row {
+    cursor: pointer;
+}
+
+.activity-log-user,
+.activity-log-action,
+.activity-log-collection,
+.activity-log-timestamp {
+    padding: 10px;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.activity-log-user {
+    display: flex;
+    align-items: center;
+}
+
+/* Arrow styles */
+.activity-log-arrow {
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Collapsible content styling */
+.activity-log-collapse-row {
+    display: none;
+}
+
+.activity-log-card {
+    width: 100%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.activity-log-card-body {
+    padding: 15px;
+    background-color: #fff;
+}
+
+.activity-log-document-before {
+    white-space: pre-wrap; /* Ensure text wraps */
+    word-wrap: break-word; /* Ensure long words break appropriately */
+    max-width: 100%;
+    overflow: hidden;
+    word-break: break-all;
+}
+
+/* Optional: Add hover effect on rows */
+.activity-log-row:hover {
+    background-color: #f9f9f9;
+}
+
+.activity-log-user:hover .activity-log-arrow {
+    color: #007bff;
+}
