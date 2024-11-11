@@ -22,6 +22,10 @@
         <ul></ul>
     </div>
     </div>
+    @if (session('success'))
+            <div class="collection-alert">{{ session('success') }}</div>
+        @endif
+
 
     <!-- Collections List -->
     <div class="search-res-card-list" id="cardList">

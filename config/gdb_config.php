@@ -11,5 +11,13 @@ return [
         'collection_metadata',
     ],
 
+    'excluded_columns' => [
+        'deleted',
+        'created_at',
+        'updated_at',
+    ],
+
     'default_per_page' => 25,
+
+
 ];

@@ -31,8 +31,6 @@ public function index(Request $request)
     $search = $request->get('search', '');
     $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-    // $mongoClient = DB::connection('mongodb')->getMongoClient();
-    // $database = $mongoClient->selectDatabase('generic_data');
     $collections = $this->database->listCollections();
 
     $excludedCollections = config('gdb_config.excluded_collections');
@@ -103,13 +101,9 @@ public function index(Request $request)
         $fieldDefinitions = array_merge($fields, $defaultFields);
     
         try {
-            // $mongoClient = DB::connection('mongodb')->getMongoClient();
-            // $database = $mongoClient->selectDatabase('generic_data');
-    
-            // Create the collection in MongoDB
+
             $this->database->createCollection($collectionName);
     
-            // Store the collection metadata using Eloquent
             CollectionMetadata::create([
                 'collection_name' => $collectionName,
                 'fields' => $fieldDefinitions,
@@ -126,10 +120,10 @@ public function index(Request $request)
     public function show(Request $request, $collectionName)
     {
         $showAll = $request->get('show_all', false);
-        $perPage = $request->get('per_page', 25);
+        $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
         $search = $request->get('search', '');
+        $autoGenerateCode = $request->has('autoGenerateCode'); // Check if the checkbox was checked
     
-        // Retrieve collection metadata
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         $headers = $collectionMetadata ? $collectionMetadata->fields : [];
     
@@ -137,16 +131,24 @@ public function index(Request $request)
         $query = DB::connection('mongodb')->getCollection($collectionName)->find($filter)->toArray();
     
         if ($search) {
-            // Perform case-insensitive search
             $query = array_filter($query, function($document) use ($search) {
                 foreach ($document as $key => $value) {
-                    // Convert both the document value and search term to lowercase for case-insensitive comparison
                     if (strpos(strtolower((string)$value), strtolower($search)) !== false) {
                         return true;
                     }
                 }
                 return false;
             });
+        }
+    
+        if ($autoGenerateCode) {
+            $nextCode = count($query) + 1; 
+            foreach ($query as &$document) {
+                if (!isset($document['code'])) {
+                    $document['code'] = (string)$nextCode;
+                    $nextCode++;
+                }
+            }
         }
     
         $total = count($query);
@@ -166,11 +168,12 @@ public function index(Request $request)
     
     
     
-    private function insertDataIntoCollection($collectionName, array $headers, array $rows)
+    
+    private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
     {
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         $fieldDefinitions = $collectionMetadata ? $collectionMetadata->fields : [];
-    
+        
         $fieldTypes = [];
         $fieldConstraints = [];
         foreach ($fieldDefinitions as $field) {
@@ -181,34 +184,45 @@ public function index(Request $request)
                 'default' => $field['default'] ?? null,
             ];
         }
-    
+        
         $insertData = [];
+        $nextCode = 0;
+        
+        if ($autoGenerateCode) {
+            // Get the current count of documents in the collection to set the starting point for code generation
+            $existingCount = DB::connection('mongodb')->getCollection($collectionName)->count();
+            $nextCode = $existingCount + 1; // Start from the length of the collection
+        }
+        
         foreach ($rows as $row) {
             $insertRow = array_combine($headers, $row);
             $insertRow['deleted'] = 0;
+            
+            // Handle Auto Generate Code
+            if ($autoGenerateCode && !isset($insertRow['code'])) {
+                $insertRow['code'] = (string) $nextCode; // Assign the generated code
+                $nextCode++; // Increment the code for the next entry
+            }
     
-            // Handle created_at and updated_at fields
+            // Handle timestamps
             $createdAt = Carbon::now();
             $updatedAt = Carbon::now();
             $insertRow['created_at'] = new UTCDateTime($createdAt);
             $insertRow['updated_at'] = new UTCDateTime($updatedAt);
-    
-            // Apply constraints and validations
+            
+            // Validate fields based on constraints
             foreach ($insertRow as $field => $value) {
                 if (isset($fieldConstraints[$field])) {
                     $constraints = $fieldConstraints[$field];
-    
-                    // Check for 'nullable' constraint
+        
                     if ($value === null && !$constraints['nullable']) {
                         throw new \Exception("Field '$field' cannot be null.");
                     }
-    
-                    // Apply 'default' value if necessary
+        
                     if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
                         $insertRow[$field] = $constraints['default'];
                     }
-    
-                    // Check for 'unique' constraint
+        
                     if ($constraints['unique']) {
                         $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
                         if ($existing) {
@@ -216,8 +230,7 @@ public function index(Request $request)
                         }
                     }
                 }
-    
-                // Type validation
+        
                 if (isset($fieldTypes[$field])) {
                     $expectedType = $fieldTypes[$field];
                     if ($expectedType == 'integer' && !is_numeric($value)) {
@@ -229,31 +242,34 @@ public function index(Request $request)
                     }
                 }
             }
-    
+        
             $insertData[] = $insertRow;
         }
-    
-        // Insert data if there is any valid data
+        
         if (!empty($insertData)) {
             DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
         }
     }
     
-    // Bulk upload data
+    
     public function bulkUpload(Request $request, $collectionName)
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,csv,xls',
         ]);
-
+    
+        // Check if the auto-generate code checkbox is selected
+        $autoGenerateCode = $request->has('autoGenerateCode'); // This is the flag from the form
+    
         $path = $request->file('file')->store('uploads');
         $data = Excel::toArray([], storage_path("app/{$path}"));
         $rows = $data[0];
-
+    
         $headers = array_shift($rows); // Remove header row
-
+    
         try {
-            $this->insertDataIntoCollection($collectionName, $headers, $rows);
+            // Pass the autoGenerateCode flag to the method
+            $this->insertDataIntoCollection($collectionName, $headers, $rows, $autoGenerateCode);
             ActivityLogService::log('Insertion', $collectionName, 'Bulk Upload from Excel sheet');
         } catch (\Exception $e) {
             Log::error('Data import failed: ' . $e->getMessage());
@@ -261,13 +277,13 @@ public function index(Request $request)
         } finally {
             Storage::delete($path);
         }
-
+    
         return redirect()->back()->with('success', 'Data imported successfully.');
     }
+    
 
     public function download($collectionName, $includeData = false)
     {
-        // Fetch the collection metadata
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
                                 ->findOne(['collection_name' => $collectionName]);
     
@@ -275,18 +291,18 @@ public function index(Request $request)
             return redirect()->back()->with('error', 'Collection metadata not found.');
         }
     
-        // Convert BSONArray to a plain PHP array using iterator_to_array
         $fields = iterator_to_array($collectionMetadata['fields']);
     
-        // Extract the headers from the metadata fields
         $headers = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
     
-        // Exclude certain fields (e.g., _id, deleted, created_at, updated_at)
-        $headers = array_filter($headers, fn($key) => !in_array($key, ['_id', 'deleted', 'created_at', 'updated_at']), ARRAY_FILTER_USE_KEY);
+        $excludedFields = config('gdb_config.excluded_columns');;
+        $headers = array_filter($headers, fn($field) => !in_array($field, $excludedFields));
+        
+        $headers = array_values($headers);
+        
     
-        // If including data, fetch documents from the specified collection
         if ($includeData) {
             $documents = DB::connection('mongodb')->getCollection($collectionName)
                             ->find(['deleted' => 0])
@@ -297,32 +313,24 @@ public function index(Request $request)
             foreach ($documents as $document) {
                 $row = [];
                 foreach ($headers as $header) {
-                    // Add the document field value or empty if not set
-                    // Make sure the field exists in the document
                     $row[] = $document[$header] ?? '';
                 }
                 $excelData[] = $row;
             }
         } else {
-            // If not including data, just provide the headers
             $excelData = [$headers];
         }
-    
-        // Generate the Excel export and download it
-        return Excel::download(new CollectionTemplateExport($excelData), 
+            return Excel::download(new CollectionTemplateExport($excelData), 
             $collectionName . ($includeData ? '_data.xlsx' : '_template.xlsx'));
     }
     
 
     public function activityLogs(Request $request)
     {
-        // Define the number of records per page (default is 25 if not specified)
-        $perPage = $request->get('per_page', 25);
+        $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-        // Get the logs with pagination
         $logs = ActivityLog::orderBy('timestamp', 'desc')->paginate($perPage);
     
-        // Pass pagination data to the view
         return view('activity_logs.index', [
             'logs' => $logs,
             'pagination' => $logs->toArray(),  // Convert the pagination object to an array
@@ -333,13 +341,10 @@ public function index(Request $request)
     public function suggestCollections(Request $request)
     {
         $search = $request->get('search', '');
-        $mongoClient = DB::connection('mongodb')->getMongoClient();
-        $database = $mongoClient->selectDatabase('generic_data');
-        $collections = $database->listCollections();
+        $collections = $this->database->listCollections();
     
-        $excludedCollections = [
-            'password_reset_tokens', 'personal_access_tokens', 'migrations', 'users', 'failed_jobs',
-        ];
+        $excludedCollections = config('gdb_config.excluded_collections');
+
     
         $suggestions = [];
         foreach ($collections as $collection) {
@@ -359,11 +364,9 @@ public function index(Request $request)
 
     public function edit($collectionName, $id)
     {
-        // Fetch the document to be edited
         $document = DB::connection('mongodb')->getCollection($collectionName)
                           ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
     
-        // Fetch the field metadata for the collection
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         if (!$collectionMetadata) {
             return redirect()->route('collections.show', $collectionName)->with('error', 'Collection metadata not found.');
@@ -423,8 +426,8 @@ public function index(Request $request)
             ['_id' => new \MongoDB\BSON\ObjectId($id)],
             [
                 '$set' => [
-                    'deleted' => 0,  // Restore the document (set 'deleted' to 0)
-                    'updated_at' => new UTCDateTime(Carbon::now()),  // Update the 'updated_at' timestamp
+                    'deleted' => 0, 
+                    'updated_at' => new UTCDateTime(Carbon::now()), 
                 ]
             ]
         );
