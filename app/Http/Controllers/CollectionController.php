@@ -26,24 +26,16 @@ class CollectionController extends Controller
         $this->database = (new MongoDBClient)->selectDatabase('generic_data');
     }
 
-// Display a listing of collections
 public function index(Request $request)
 {
     $search = $request->get('search', '');
-    $perPage = $request->get('per_page', 25);
+    $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-    $mongoClient = DB::connection('mongodb')->getMongoClient();
-    $database = $mongoClient->selectDatabase('generic_data');
-    $collections = $database->listCollections();
+    // $mongoClient = DB::connection('mongodb')->getMongoClient();
+    // $database = $mongoClient->selectDatabase('generic_data');
+    $collections = $this->database->listCollections();
 
-    $excludedCollections = [
-        'password_reset_tokens',
-        'personal_access_tokens',
-        'migrations',
-        'users',
-        'failed_jobs',
-        'activity_logs',
-    ];
+    $excludedCollections = config('gdb_config.excluded_collections');
 
     $collectionsArray = [];
     foreach ($collections as $collection) {
@@ -79,8 +71,6 @@ public function index(Request $request)
     return view('collections.index', compact('collections', 'pagination', 'search', 'perPage'));
 }
 
-
-    // Create a new collection
     public function create()
     {
         return view('collections.create');
@@ -103,7 +93,7 @@ public function index(Request $request)
     
         // Add default fields to the fields array
         $defaultFields = [
-            ['name' => 'uid', 'type' => 'string'],
+            ['name' => 'code', 'type' => 'string', 'unique' => true],
             ['name' => 'deleted', 'type' => 'integer'],
             ['name' => 'created_at', 'type' => 'date'],
             ['name' => 'updated_at', 'type' => 'date'],
@@ -113,11 +103,11 @@ public function index(Request $request)
         $fieldDefinitions = array_merge($fields, $defaultFields);
     
         try {
-            $mongoClient = DB::connection('mongodb')->getMongoClient();
-            $database = $mongoClient->selectDatabase('generic_data');
+            // $mongoClient = DB::connection('mongodb')->getMongoClient();
+            // $database = $mongoClient->selectDatabase('generic_data');
     
             // Create the collection in MongoDB
-            $database->createCollection($collectionName);
+            $this->database->createCollection($collectionName);
     
             // Store the collection metadata using Eloquent
             CollectionMetadata::create([

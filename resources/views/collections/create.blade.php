@@ -14,7 +14,7 @@
                 <div class="label-container">
                     <label for="collection_name">Object Name
                         <i class="fas fa-info-circle info-icon"></i>
-                        <span class="info-text">Enter a unique name for your .</span>
+                        <span class="info-text">Enter a unique name for your object.</span>
                     </label>
                 </div>
                 <input type="text" name="collection_name" id="collection_name" class="form-control" required>
@@ -41,8 +41,6 @@
                                 <option value="boolean">Boolean - [True, False] - [0,1]</option>
                             </select>
                         </div>
-
-                        <!-- Options Section -->
                         <div class="field-options">
                             <div class="label-container">
                                 <label>Options
@@ -65,19 +63,12 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="label-container">
-                    <label for="fields">Fields
-                        <i class="fas fa-info-circle info-icon"></i>
-                        <span class="info-text">Define fields for your Object. Each field requires a name and a data type.</span>
-                    </label>
-                </div>
-                <div id="fields-container">
-                    <!-- First Field Group -->
+
+                    <!-- Second Field Group -->
                     <div class="field-group">
                         <div class="field-inputs">
-                            <input type="text" name="fields[0][name]" class="form-control field-name" placeholder="Field Name" required>
-                            <select name="fields[0][type]" class="form-control field-type">
+                            <input type="text" name="fields[1][name]" class="form-control field-name" placeholder="Field Name" required>
+                            <select name="fields[1][type]" class="form-control field-type">
                                 <option value="" disabled selected>Select Data Type</option>
                                 <option value="string">String - Alphabets, Numbers, Special Characters</option>
                                 <option value="integer">Integer - Numbers only</option>
@@ -85,8 +76,6 @@
                                 <option value="boolean">Boolean - [True, False] - [0,1]</option>
                             </select>
                         </div>
-
-                        <!-- Options Section -->
                         <div class="field-options">
                             <div class="label-container">
                                 <label>Options
@@ -96,20 +85,21 @@
                             </div>
                             <div class="form-check-inline-container">
                                 <div class="form-check-inline">
-                                    <input type="checkbox" name="fields[0][unique]" value="1" class="form-check-input">
+                                    <input type="checkbox" name="fields[1][unique]" value="1" class="form-check-input">
                                     <label class="form-check-label">Unique</label>
                                 </div>
                                 <div class="form-check-inline">
-                                    <input type="checkbox" name="fields[0][nullable]" value="1" class="form-check-input">
+                                    <input type="checkbox" name="fields[1][nullable]" value="1" class="form-check-input">
                                     <label class="form-check-label">Nullable</label>
                                 </div>
                                 <div class="form-check-inline">
-                                    <input type="text" name="fields[0][default]" class="form-control default-value" placeholder="Default Value">
+                                    <input type="text" name="fields[1][default]" class="form-control default-value" placeholder="Default Value">
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
                 <!-- Add New Field Button -->
                 <button type="button" id="add-field" class="add-field-button">
                     <span>+</span>
@@ -121,6 +111,4 @@
         </form>
     </div>
 </div>
-
-
 @endsection

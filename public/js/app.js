@@ -80,9 +80,11 @@ $(document).ready(function() {
     // Initial call to attach listeners on page load
     attachInfoListeners();
 
-    // Add new field group logic
     document.getElementById('add-field').addEventListener('click', function() {
+        // Calculate the next index based on the existing number of '.field-group' elements
         let index = document.querySelectorAll('.field-group').length;
+    
+        // Create a new field group with the correct index
         let fieldGroup = `
             <div class="field-group">
                 <div class="field-inputs">
@@ -95,7 +97,6 @@ $(document).ready(function() {
                         <option value="boolean">Boolean - [True, False] - [0,1]</option>
                     </select>
                 </div>
-
                 <div class="field-options">
                     <div class="label-container">
                         <label>Options
@@ -119,7 +120,9 @@ $(document).ready(function() {
                 </div>
             </div>
         `;
+    
+        // Append the new field group to the container
         document.getElementById('fields-container').insertAdjacentHTML('beforeend', fieldGroup);
-        attachInfoListeners(); // Re-attach listeners to new icons
     });
+    
 });
