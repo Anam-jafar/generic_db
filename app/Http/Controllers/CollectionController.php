@@ -31,7 +31,9 @@ public function index(Request $request)
     $search = $request->get('search', '');
     $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-    $collections = $this->database->listCollections();
+    $mongoClient = DB::connection('mongodb')->getMongoClient();
+    $database = $mongoClient->selectDatabase('generic_data');
+    $collections = $database->listCollections();
 
     $excludedCollections = config('gdb_config.excluded_collections');
 
@@ -102,7 +104,9 @@ public function index(Request $request)
     
         try {
 
-            $this->database->createCollection($collectionName);
+            $mongoClient = DB::connection('mongodb')->getMongoClient();
+            $database = $mongoClient->selectDatabase('generic_data');
+            $database->createCollection($collectionName);
     
             CollectionMetadata::create([
                 'collection_name' => $collectionName,
@@ -341,7 +345,9 @@ public function index(Request $request)
     public function suggestCollections(Request $request)
     {
         $search = $request->get('search', '');
-        $collections = $this->database->listCollections();
+        $mongoClient = DB::connection('mongodb')->getMongoClient();
+        $database = $mongoClient->selectDatabase('generic_data');
+        $collections = $database->listCollections();
     
         $excludedCollections = config('gdb_config.excluded_collections');
 

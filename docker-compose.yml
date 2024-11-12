@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  db:
+    image: mongo:latest
+    ports:
+      - "27018:27017"  # This maps the host's port 27018 to the container's MongoDB port 27017
+    volumes:
+      - db_data:/data/db
+
+
+  # Laravel Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_CONNECTION: mongodb
+      DB_HOST: db
+      DB_PORT: 27017
+      DB_DATABASE: generic_data
+    ports:
+      - "8080:80" # Exposing port 80 in the container to 8000 on the host
+    depends_on:
+      - db
+
+volumes:
+  db_data:
