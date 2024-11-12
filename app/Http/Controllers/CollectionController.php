@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\User;
+
 use App\Models\CollectionMetadata;
 use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
@@ -352,14 +354,28 @@ public function index(Request $request)
     {
         $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-        $logs = ActivityLog::orderBy('timestamp', 'desc')->paginate($perPage);
+        // Get selected user, if any; show all logs if none is selected
+        $selectedUser = $request->get('user');
+        $query = ActivityLog::orderBy('timestamp', 'desc');
+    
+        if ($selectedUser) {
+            $query->where('user', $selectedUser);
+        }
+    
+        $logs = $query->paginate($perPage);
+    
+        // Fetch all users for the dropdown (assuming User model is available)
+        $users = User::all();
     
         return view('activity_logs.index', [
             'logs' => $logs,
-            'pagination' => $logs->toArray(),  // Convert the pagination object to an array
+            'pagination' => $logs->toArray(),
             'perPage' => $perPage,
+            'users' => $users,
+            'selectedUser' => $selectedUser,
         ]);
     }
+    
     
     public function suggestCollections(Request $request)
     {

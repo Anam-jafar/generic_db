@@ -3,11 +3,7 @@
 @section('content')
     <div class="container mt-5">
         <div class="card shadow-lg rounded gdb-auth-card">
-            <div class="generic-db-banner">
-                    <h1>Generic DB.</h1>
-            </div>
-            <hr>
-            <h2 class="text-center mb-4">Register</h2>
+            <h2 class="text-center mb-4">Register new user</h2>
 
             <form method="POST" action="{{ route('register') }}">
                 @csrf
@@ -32,12 +28,16 @@
                     <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required>
                 </div>
 
+                <!-- New checkbox field -->
+                <div class="form-group form-check">
+                    <input type="hidden" name="is_admin" value=0>
+                    <input type="checkbox" id="is_admin" name="is_admin" value=1 class="form-check-input">
+                    <label class="form-check-label" for="is_admin">Mark this user as admin</label>
+                </div>
+
                 <button type="submit" class="btn w-100 gdb-auth-button">Register</button>
             </form>
 
-            <div class="text-center mt-3">
-                <p>Already have an account? <a href="{{ route('login') }}" class="text-decoration-none">Login</a></p>
-            </div>
         </div>
     </div>
 @endsection

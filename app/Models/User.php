@@ -11,6 +11,6 @@ class User extends Model implements AuthenticatableContract
     use Authenticatable; // Use the Authenticatable trait
 
     protected $connection = 'mongodb';
-    protected $fillable = ['name', 'email', 'password'];
+    protected $fillable = ['name', 'email', 'password', 'is_admin'];
     protected $hidden = ['password'];
 }

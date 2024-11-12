@@ -28,10 +28,6 @@
 
                 <button type="submit" class="btn w-100 gdb-auth-button">Login</button>
             </form>
-
-            <div class="text-center mt-3">
-                <p>Don't have an account? <a href="{{ route('register') }}" class="text-decoration-none">Register now</a></p>
-            </div>
         </div>
     </div>
 @endsection

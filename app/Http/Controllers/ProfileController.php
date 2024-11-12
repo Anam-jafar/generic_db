@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+
 
 class ProfileController extends Controller
 {
@@ -39,6 +41,13 @@ class ProfileController extends Controller
         // Update the user's profile data
         $user->name = $request->name;
         $user->email = $request->email;
+        
+        if( isset($request->password)){
+            if ($request->password == $request->password_confirmation){
+                $user->password = Hash::make($request->password);
+            }
+        }
+
         $user->save();
     
         // Redirect back to the profile page with a success message

@@ -29,7 +29,12 @@
                         </a>
                         <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
                             <a class="dropdown-item" href="{{ route('profile.index') }}">Profile</a>
+                            @if(Auth::user()->is_admin == 1)
                             <a class="dropdown-item" href="{{ route('activity.logs') }}">Activity Logs</a>
+
+                            <a class="dropdown-item" href="{{ route('admin.users') }}">Users list</a>
+                            @endif
+
                             <div class="dropdown-divider"></div>
                             <form action="{{ route('logout') }}" method="POST" class="d-inline">
                                 @csrf

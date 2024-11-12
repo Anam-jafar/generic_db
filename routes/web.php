@@ -51,5 +51,21 @@ Route::middleware('auth')->group(function () {
     Route::get('/activity-logs', [CollectionController::class, 'activityLogs'])->name('activity.logs');
     Route::get('/suggestions', [CollectionController::class, 'suggestCollections'])->name('collections.suggestions');
 
+    Route::get('admin/users', [AuthController::class, 'showUsers'])->name('admin.users');
+    Route::get('admin/users/{id}/edit', [AuthController::class, 'editUser'])->name('users.edit');
+    Route::put('admin/users/{id}', [AuthController::class, 'updateUser'])->name('users.update');
+    Route::delete('admin/users/{id}', [AuthController::class, 'destroyUser'])->name('users.destroy');
+    Route::get('admin/users/{id}/logs', [AuthController::class, 'viewActivityLogs'])->name('users.activityLogs');
+
+
 
 });
+
+// Route::middleware(['auth', 'is_admin'])->group(function () {
+//     Route::get('admin/users', [AuthController::class, 'showUsers'])->name('admin.users');
+//     Route::get('admin/users/{id}/edit', [AuthController::class, 'editUser'])->name('users.edit');
+//     Route::put('admin/users/{id}', [AuthController::class, 'updateUser'])->name('users.update');
+//     Route::delete('admin/users/{id}', [AuthController::class, 'destroyUser'])->name('users.destroy');
+//     Route::get('admin/users/{id}/logs', [AuthController::class, 'viewActivityLogs'])->name('users.activityLogs');
+// });
+

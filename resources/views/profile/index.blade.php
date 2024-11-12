@@ -26,6 +26,17 @@
                         <input type="email" id="email" name="email" class="form-control" value="{{ $user->email }}" required>
                     </div>
 
+                    <!-- Password is optional in edit form -->
+                    <div class="form-group">
+                        <label for="password">Password (leave blank to keep current password)</label>
+                        <input type="password" id="password" name="password" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password_confirmation">Confirm Password</label>
+                        <input type="password" id="password_confirmation" name="password_confirmation" class="form-control">
+                    </div>
+
                     <button type="submit" class="btn w-100 gdb-auth-button">Update Profile</button>
                 </form>
             @else

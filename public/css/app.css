@@ -21,3 +21,101 @@
 @import './suggetion.css';
 
 @import './activity.css';
+
+
+/* Users Container */
+.custom-users-container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Table Styles */
+.custom-users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Table Header */
+.custom-users-header {
+    padding: 12px;
+    background-color: #f4f4f4;
+    font-weight: bold;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Table Row */
+.custom-users-row {
+    cursor: pointer;
+}
+
+/* Table Data Cells */
+.custom-users-name,
+.custom-users-email,
+.custom-users-admin,
+.custom-users-created,
+.custom-users-actions {
+    padding: 12px;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+/* Custom button container (for Add New User) */
+.custom-btn-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Add New User Button */
+.custom-btn-add {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 16px;
+    text-decoration: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Hover effect for Add New User button */
+.custom-btn-add:hover {
+    background-color: #218838;
+}
+
+/* Action Buttons - Edit & Delete */
+.custom-btn-action {
+    padding: 6px 12px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Edit Button */
+.custom-btn-edit {
+    background-color: #007bff;
+    color: white;
+}
+
+.custom-btn-edit:hover {
+    background-color: #0056b3;
+}
+
+/* Delete Button */
+.custom-btn-delete {
+    background-color: #dc3545;
+    color: white;
+    margin-left: 8px;
+}
+
+.custom-btn-delete:hover {
+    background-color: #c82333;
+}
+
+/* Hover effect on rows */
+.custom-users-row:hover {
+    background-color: #f9f9f9;
+}
