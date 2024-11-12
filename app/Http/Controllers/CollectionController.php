@@ -263,17 +263,35 @@ public function index(Request $request)
         ]);
     
         // Check if the auto-generate code checkbox is selected
-        $autoGenerateCode = $request->has('autoGenerateCode'); // This is the flag from the form
+        $autoGenerateCode = $request->has('autoGenerateCode');
     
         $path = $request->file('file')->store('uploads');
         $data = Excel::toArray([], storage_path("app/{$path}"));
         $rows = $data[0];
     
-        $headers = array_shift($rows); // Remove header row
+        $uploadedHeaders = array_shift($rows);
+    
+        // Get collection metadata for header validation
+        $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
+            ->findOne(['collection_name' => $collectionName]);
+    
+        if (!$collectionMetadata) {
+            return redirect()->back()->with('error', 'Collection metadata not found.');
+        }
+    
+        $fields = iterator_to_array($collectionMetadata['fields']);
+        $expectedHeaders = array_map(function ($field) {
+            return $field['name']; // Extract field names
+        }, $fields);
+    
+        // Validate headers
+        if ($uploadedHeaders !== $expectedHeaders) {
+            return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
+        }
     
         try {
             // Pass the autoGenerateCode flag to the method
-            $this->insertDataIntoCollection($collectionName, $headers, $rows, $autoGenerateCode);
+            $this->insertDataIntoCollection($collectionName, $uploadedHeaders, $rows, $autoGenerateCode);
             ActivityLogService::log('Insertion', $collectionName, 'Bulk Upload from Excel sheet');
         } catch (\Exception $e) {
             Log::error('Data import failed: ' . $e->getMessage());
@@ -284,6 +302,7 @@ public function index(Request $request)
     
         return redirect()->back()->with('success', 'Data imported successfully.');
     }
+    
     
 
     public function download($collectionName, $includeData = false)
