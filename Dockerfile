@@ -30,12 +30,16 @@ RUN docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg \
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Copy Apache VirtualHost configuration from the project directory
-COPY apache/laravel.conf /etc/apache2/sites-available/laravel.conf
+# Apache Configuration for Laravel
+RUN echo "<Directory /var/www/html/public>\n\
+    Options Indexes FollowSymLinks\n\
+    AllowOverride All\n\
+    Require all granted\n\
+</Directory>\n" > /etc/apache2/conf-available/laravel.conf \
+    && a2enconf laravel
 
-# Enable the custom Laravel site configuration
-RUN a2ensite laravel \
-    && a2dissite 000-default
+# Set Apache Document Root to Laravel public directory
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
 # Copy the Laravel project to the container
 COPY . /var/www/html/
