@@ -30,20 +30,28 @@ RUN docker-php-ext-configure gd --enable-gd --with-freetype --with-jpeg \
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Copy Apache VirtualHost configuration from the project directory
-COPY apache/laravel.conf /etc/apache2/sites-available/laravel.conf
+# Apache Configuration for Laravel
+RUN echo "<Directory /var/www/html/public>\n\
+    Options Indexes FollowSymLinks\n\
+    AllowOverride All\n\
+    Require all granted\n\
+</Directory>\n" > /etc/apache2/conf-available/laravel.conf \
+    && a2enconf laravel
 
-# Enable the custom Laravel site configuration
-RUN a2ensite laravel \
-    && a2dissite 000-default
+# Set Apache Document Root to Laravel public directory
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
+
+# Set ServerName to suppress warning
+RUN echo "ServerName localhost" | tee /etc/apache2/conf-available/servername.conf \
+    && a2enconf servername
 
 # Copy the Laravel project to the container
 COPY . /var/www/html/
 
 # Set appropriate permissions for storage and bootstrap/cache directories
-RUN mkdir -p storage/framework/{sessions,views,cache} \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache} /var/www/html/storage/logs \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Install MongoDB PHP extension
 RUN apt-get update && \
@@ -56,5 +64,6 @@ RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
 # Expose port 80 for Apache
 EXPOSE 80
-# Start the Apache server
+
+# Start the Apache server (entry point for container)
 CMD ["apache2-foreground"]
