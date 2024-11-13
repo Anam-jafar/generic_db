@@ -5,6 +5,15 @@
         <div class="custom-btn-container">
             <h2>All Users</h2>
             <!-- Add New User Button -->
+            @if (session('success'))
+                <div class="collection-alert">{{ session('success') }}</div>
+            @endif
+            @if (session('warning'))
+                <div class="collection-warning">{{ session('warning') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="collection-danger">{{ session('error') }}</div>
+            @endif
             <a href="{{ route('register') }}" class="btn gdb-button">Add New User</a>
         </div>
 

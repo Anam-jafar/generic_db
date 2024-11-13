@@ -24,10 +24,34 @@
     margin-bottom: 60px;
 }
 
-.collection-alert {
+.collection-alert{
     background-color: #d4edda;
     border-color: #c3e6cb;
     color: #155724;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    padding: 20px;  /* Adjust padding for extra space */
+    height: auto;   /* Ensure height adjusts to content */
+    line-height: 1.5; /* Adjust line height for spacing between text */
+    width: 100%;
+}
+
+.collection-warning {
+    background-color: #f0cb94;
+    border-color: #e98400;
+    color: rgba(138, 106, 0, 0.685);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    padding: 20px;  /* Adjust padding for extra space */
+    height: auto;   /* Ensure height adjusts to content */
+    line-height: 1.5; /* Adjust line height for spacing between text */
+    width: 100%;
+}
+
+.collection-danger {
+    background-color: rgba(255, 176, 176, 0.685);;
+    border-color: #ff9292;
+    color: rgba(139, 2, 2, 0.685);
     border-radius: 4px;
     margin-bottom: 20px;
     padding: 20px;  /* Adjust padding for extra space */

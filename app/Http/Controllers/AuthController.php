@@ -29,7 +29,7 @@ class AuthController extends Controller
             'is_admin' => $request->is_admin,
         ]);
 
-        return redirect()->route('admin.users')->with('success', 'New user registration successful, please login.');
+        return redirect()->route('admin.users')->with('success', 'New user registration successful.');
     }
 
     public function showLoginForm()
@@ -39,26 +39,26 @@ class AuthController extends Controller
 
     public function login(Request $request)
 {
-    $request->validate([
-        'email' => 'required|string|email',
-        'password' => 'required|string',
-    ]);
+        $request->validate([
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
 
-    // Retrieve the user by email
-    $user = User::where('email', $request->email)->first();
+        // Retrieve the user by email
+        $user = User::where('email', $request->email)->first();
 
-    // Check if user exists and verify the password
-    if ($user && password_verify($request->password, $user->password)) {
-        Auth::login($user); // Log the user in
-        return redirect()->route('collections.index'); // Redirect to collections page
+        // Check if user exists and verify the password
+        if ($user && password_verify($request->password, $user->password)) {
+            Auth::login($user); // Log the user in
+            return redirect()->route('collections.index'); // Redirect to collections page
+        }
+
+        return back()->with('error', 'Invalid credentials.');
     }
-
-    return back()->withErrors(['email' => 'Invalid credentials.']);
-}
     public function logout()
     {
         Auth::logout();
-        return redirect()->route('login')->with('success', 'Logged out successfully.');
+        return redirect()->route('login')->with('warning', 'Logged out successfully.');
     }
 
 

@@ -5,9 +5,15 @@
     <div class="collection-card">
         <h1 class="collection-header">Collection: {{ $collectionName }}</h1>
 
-        @if (session('success'))
-            <div class="collection-alert">{{ session('success') }}</div>
-        @endif
+            @if (session('success'))
+                <div class="collection-alert">{{ session('success') }}</div>
+            @endif
+            @if (session('warning'))
+                <div class="collection-warning">{{ session('warning') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="collection-danger">{{ session('error') }}</div>
+            @endif
 
         <div class="flex-container">
             <!-- Upload form -->
