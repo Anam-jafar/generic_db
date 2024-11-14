@@ -89,12 +89,10 @@ class AuthController extends Controller
 
 public function updateUser(Request $request, $id)
 {
-    // Authorize if the user is an admin
     if (!Auth::user() || Auth::user()->is_admin !== '1') {
         return redirect()->route('collections.index')->with('error', 'Unauthorized access.');
     }
 
-    // Validate the request
     $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users,email,' . $id,
@@ -103,19 +101,16 @@ public function updateUser(Request $request, $id)
 
     $user = User::findOrFail($id);
 
-    // Update the user's information
     $userData = $request->only('name', 'email', 'is_admin');
 
-    // If a password is provided, hash it and add it to the update data
     if ($request->filled('password')) {
         if ($request->password === $request->password_confirmation) {
-            $userData['password'] = Hash::make($request->password);  // Hash the password
+            $userData['password'] = Hash::make($request->password); 
         } else {
             return redirect()->back()->with('error', 'Passwords do not match.');
         }
     }
 
-    // Update the user with the validated data
     $user->update($userData);
 
     return redirect()->route('admin.users')->with('success', 'User updated successfully.');
@@ -124,7 +119,6 @@ public function updateUser(Request $request, $id)
 
 public function destroyUser($id)
 {
-    // Authorize if the user is an admin
     if (!Auth::user() || Auth::user()->is_admin !== '1') {
         return redirect()->route('collections.index')->with('error', 'Unauthorized access.');
     }
@@ -132,7 +126,7 @@ public function destroyUser($id)
     $user = User::findOrFail($id);
     $user->delete();
 
-    return redirect()->route('admin.users')->with('success', 'User deleted successfully.');
+    return redirect()->route('admin.users')->with('warning', 'User deleted successfully.');
 }
 
 }
