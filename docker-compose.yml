@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: generic_db_be
+    volumes:
+      - .:/var/www/html:cached
+    environment:
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
+    networks:
+      - laravel_network
+    command: >
+      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
+             chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
+             php-fpm"
+
+  webserver:
+    image: nginx:alpine
+    container_name: generic_db_server
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "7070:80"
+    networks:
+      - laravel_network
+    depends_on:
+      - app
+
+networks:
+  laravel_network:
+    driver: bridge
