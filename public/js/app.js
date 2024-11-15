@@ -2,7 +2,7 @@
 
 $(document).ready(function() {
     // Hardcode the URL of the suggestions route
-    const suggestionsRoute = '/suggestions'; // Hardcoded URL
+    const suggestionsRoute = 'generic/suggestions'; // Hardcoded URL
 
     // Handle search input for suggestions
     $('#searchInput').on('keyup', function() {
