@@ -285,7 +285,11 @@ public function index(Request $request)
         $expectedHeaders = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
-    
+        
+        $excludedFields = config('gdb_config.excluded_columns');
+        $uploadedHeaders = array_filter($uploadedHeaders, fn($field) => !in_array($field, $excludedFields));
+        $expectedHeaders = array_filter($expectedHeaders, fn($field) => !in_array($field, $excludedFields));
+
         // Validate headers
         if ($uploadedHeaders !== $expectedHeaders) {
             return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
