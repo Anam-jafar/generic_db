@@ -7,15 +7,15 @@ services:
       dockerfile: ./docker/php/Dockerfile
     container_name: generic_db_be
     volumes:
-      - .:/var/www/html:cached
+      - .:/var/www/html
     environment:
       - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
     networks:
       - laravel_network
-    command: >
-      sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
-             chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
-             php-fpm"
+    # command: >
+    #   sh -c "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache &&
+    #          chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache &&
+    #          php-fpm"
 
   webserver:
     image: nginx:alpine
