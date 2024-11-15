@@ -18,7 +18,7 @@
 <body>
 @if(Auth::check())
     <nav class="navbar navbar-expand-lg navbar-light">
-        <a class="navbar-brand logo" href="/">Generic DB.</a>
+        <a class="navbar-brand logo" href="{{ route('collections.index') }}">Generic DB.</a>
         <a class="navbar-brand link" href="{{ route('collections.create') }}">Add New Object</a>
         <div class="collapse navbar-collapse">
             <ul class="navbar-nav ml-auto">
