@@ -35,8 +35,8 @@ COPY --chown=www-data:www-data . .
 
 RUN composer install --ignore-platform-reqs
 RUN composer dump-autoload --ignore-platform-reqs
-RUN chown -R www-data:www-data ./storage ./bootstrap
-RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap /var/www/html/bootstrap/cache
+RUN chmod -R 777 /var/www/html/storage /var/www/html/bootstrap /var/www/html/bootstrap/cache
 
 # Install Node.js (use NodeSource to get specific version)
 RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
