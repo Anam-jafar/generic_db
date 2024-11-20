@@ -340,23 +340,40 @@ public function index(Request $request)
     public function download($collectionName, $includeData = false)
     {
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
-                                ->findOne(['collection_name' => $collectionName]);
-    
+                                    ->findOne(['collection_name' => $collectionName]);
+        
         if (!$collectionMetadata) {
             return redirect()->back()->with('error', 'Collection metadata not found.');
         }
     
+        // Convert BSONArray to a regular array
         $fields = iterator_to_array($collectionMetadata['fields']);
-    
+        
+        // Extract field names for the headers
         $headers = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
     
+        // Exclude any fields specified in the config
         $excludedFields = config('gdb_config.excluded_columns');
         $headers = array_filter($headers, fn($field) => !in_array($field, $excludedFields));
         
         $headers = array_values($headers);
         
+        // Handle translations field and add lan_ prefix, remove original 'translation' field
+        $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
+        
+        foreach ($translations as $translationField) {
+            if (isset($translationField['fields'])) {
+                foreach ($translationField['fields'] as $language) {
+                    $headers[] = 'lan_' . $language['name']; // Add prefix for each language
+                }
+            }
+        }
+    
+        // Remove the original 'translation' field from headers
+        $headers = array_filter($headers, fn($field) => $field !== 'translations');
+        $headers = array_values($headers); // Re-index the array
     
         if ($includeData) {
             $documents = DB::connection('mongodb')->getCollection($collectionName)
@@ -368,16 +385,23 @@ public function index(Request $request)
             foreach ($documents as $document) {
                 $row = [];
                 foreach ($headers as $header) {
-                    $row[] = $document[$header] ?? '';
+                    if (strpos($header, 'lan_') === 0) {
+                        $langCode = substr($header, 4); // Extract language code from the prefix
+                        $row[] = $document['translation'][$langCode] ?? ''; // Get translation value for the language
+                    } else {
+                        $row[] = $document[$header] ?? ''; // Standard field value
+                    }
                 }
                 $excelData[] = $row;
             }
         } else {
             $excelData = [$headers];
         }
-            return Excel::download(new CollectionTemplateExport($excelData), 
+    
+        return Excel::download(new CollectionTemplateExport($excelData), 
             $collectionName . ($includeData ? '_data.xlsx' : '_template.xlsx'));
     }
+    
     
 
     public function activityLogs(Request $request)
