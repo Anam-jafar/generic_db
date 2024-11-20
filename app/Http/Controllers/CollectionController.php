@@ -357,6 +357,9 @@ public function index(Request $request)
     
             // Create the translations field as an object (not an array)
             $translations = new \stdClass();
+
+            $en = 'en';
+            $translations->$en = $insertRow['prm'];
     
             // Loop through the insertRow and identify 'lan_' prefixed fields
             foreach ($insertRow as $field => $value) {
@@ -367,6 +370,7 @@ public function index(Request $request)
                     unset($insertRow[$field]); // Remove the original 'lan_' field
                 }
             }
+            
     
             // Add the translations object to the row if it has any data
             if (!empty((array) $translations)) {
