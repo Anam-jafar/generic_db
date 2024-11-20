@@ -235,6 +235,91 @@ public function index(Request $request)
     
     
     
+    // private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
+    // {
+    //     $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
+    //     $fieldDefinitions = $collectionMetadata ? $collectionMetadata->fields : [];
+        
+    //     $fieldTypes = [];
+    //     $fieldConstraints = [];
+    //     foreach ($fieldDefinitions as $field) {
+    //         $fieldTypes[$field['name']] = $field['type'];
+    //         $fieldConstraints[$field['name']] = [
+    //             'unique' => $field['unique'] ?? false,
+    //             'nullable' => $field['nullable'] ?? false,
+    //             'default' => $field['default'] ?? null,
+    //         ];
+    //     }
+        
+    //     $insertData = [];
+    //     $nextCode = 0;
+        
+    //     if ($autoGenerateCode) {
+    //         // Get the current count of documents in the collection to set the starting point for code generation
+    //         $existingCount = DB::connection('mongodb')->getCollection($collectionName)->count();
+    //         $nextCode = $existingCount + 1; // Start from the length of the collection
+    //     }
+        
+    //     foreach ($rows as $row) {
+    //         $insertRow = array_combine($headers, $row);
+    //         $insertRow['is_deleted'] = 0;
+            
+    //         // Handle Auto Generate Code
+    //         if ($autoGenerateCode && !isset($insertRow['code'])) {
+    //             $insertRow['code'] = (string) $nextCode; // Assign the generated code
+    //             $nextCode++; // Increment the code for the next entry
+    //         }
+    
+    //         // Handle timestamps
+    //         $createdAt = Carbon::now();
+    //         $createdBy = Auth::user()->email;
+    //         $updatedAt = Carbon::now();
+    //         $updatedBy = Auth::user()->email;
+    //         $deletedAt = null
+    //         $deletedBy = null
+    //         $insertRow['created_at'] = new UTCDateTime($createdAt);
+    //         $insertRow['updated_at'] = new UTCDateTime($updatedAt);
+            
+    //         // Validate fields based on constraints
+    //         foreach ($insertRow as $field => $value) {
+    //             if (isset($fieldConstraints[$field])) {
+    //                 $constraints = $fieldConstraints[$field];
+        
+    //                 if ($value === null && !$constraints['nullable']) {
+    //                     throw new \Exception("Field '$field' cannot be null.");
+    //                 }
+        
+    //                 if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
+    //                     $insertRow[$field] = $constraints['default'];
+    //                 }
+        
+    //                 if ($constraints['unique']) {
+    //                     $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
+    //                     if ($existing) {
+    //                         throw new \Exception("Field '$field' must be unique. The value '$value' already exists.");
+    //                     }
+    //                 }
+    //             }
+        
+    //             if (isset($fieldTypes[$field])) {
+    //                 $expectedType = $fieldTypes[$field];
+    //                 if ($expectedType == 'integer' && !is_numeric($value)) {
+    //                     throw new \Exception("Field '$field' must be an integer.");
+    //                 } elseif ($expectedType == 'boolean' && !is_bool($value)) {
+    //                     throw new \Exception("Field '$field' must be a boolean.");
+    //                 } elseif ($expectedType == 'date' && !$value instanceof UTCDateTime) {
+    //                     throw new \Exception("Field '$field' must be a valid date.");
+    //                 }
+    //             }
+    //         }
+        
+    //         $insertData[] = $insertRow;
+    //     }
+        
+    //     if (!empty($insertData)) {
+    //         DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
+    //     }
+    // }
     private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
     {
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
@@ -262,7 +347,7 @@ public function index(Request $request)
         
         foreach ($rows as $row) {
             $insertRow = array_combine($headers, $row);
-            $insertRow['deleted'] = 0;
+            $insertRow['is_deleted'] = 0;
             
             // Handle Auto Generate Code
             if ($autoGenerateCode && !isset($insertRow['code'])) {
@@ -270,12 +355,42 @@ public function index(Request $request)
                 $nextCode++; // Increment the code for the next entry
             }
     
+            // Create the translations field as an object (not an array)
+            $translations = new \stdClass();
+    
+            // Loop through the insertRow and identify 'lan_' prefixed fields
+            foreach ($insertRow as $field => $value) {
+                // If the field starts with 'lan_' we will move it to the translations object
+                if (strpos($field, 'lan_') === 0) {
+                    $langCode = substr($field, 4); // Remove 'lan_' prefix
+                    $translations->$langCode = $value;
+                    unset($insertRow[$field]); // Remove the original 'lan_' field
+                }
+            }
+    
+            // Add the translations object to the row if it has any data
+            if (!empty((array) $translations)) {
+                $insertRow['translations'] = $translations; // Store translations as an object
+            }
+    
             // Handle timestamps
             $createdAt = Carbon::now();
+            $createdBy = 'ADMIN';
             $updatedAt = Carbon::now();
-            $insertRow['created_at'] = new UTCDateTime($createdAt);
-            $insertRow['updated_at'] = new UTCDateTime($updatedAt);
+            $updatedBy = 'ADMIN';
+            $deletedAt = null;
+            $deletedBy = null;
             
+            // Manually add system_info field with the necessary information
+            $insertRow['system_info'] = (object)[
+                'created_at' => new UTCDateTime($createdAt),
+                'created_by' => $createdBy,
+                'updated_at' => new UTCDateTime($updatedAt),
+                'updated_by' => $updatedBy,
+                'deleted_at' => $deletedAt,
+                'deleted_by' => $deletedBy
+            ];
+    
             // Validate fields based on constraints
             foreach ($insertRow as $field => $value) {
                 if (isset($fieldConstraints[$field])) {
@@ -308,14 +423,16 @@ public function index(Request $request)
                     }
                 }
             }
-        
+    
             $insertData[] = $insertRow;
         }
-        
+    
         if (!empty($insertData)) {
             DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
         }
     }
+    
+
     
     
     public function bulkUpload(Request $request, $collectionName)
@@ -350,10 +467,10 @@ public function index(Request $request)
         $uploadedHeaders = array_filter($uploadedHeaders, fn($field) => !in_array($field, $excludedFields));
         $expectedHeaders = array_filter($expectedHeaders, fn($field) => !in_array($field, $excludedFields));
 
-        // Validate headers
-        if ($uploadedHeaders !== $expectedHeaders) {
-            return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
-        }
+        // // Validate headers
+        // if ($uploadedHeaders !== $expectedHeaders) {
+        //     return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
+        // }
     
         try {
             // Pass the autoGenerateCode flag to the method

@@ -77,11 +77,9 @@
                             @foreach ($document as $key => $value)
                                 @if ($key == 'translations')
                                         @foreach ($value as $translation)
-                                            @foreach ($translation as $lang => $translatedValue)
                                             <td>
-                                                {{ $translatedValue }}
+                                                {{ $translation }}
                                             </td>
-                                            @endforeach
                                         @endforeach
                                    
                                 @elseif($key != '_id')
