@@ -6,6 +6,15 @@
         Create New Object
     </div>
     <div class="collection-form-body">
+            @if (session('success'))
+                <div class="collection-alert">{{ session('success') }}</div>
+            @endif
+            @if (session('warning'))
+                <div class="collection-warning">{{ session('warning') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="collection-danger">{{ session('error') }}</div>
+            @endif
         <form action="{{ route('collections.store') }}" method="POST">
             @csrf
 
@@ -32,7 +41,7 @@
                     <!-- First Field Group -->
                     <div class="field-group">
                         <div class="field-inputs">
-                            <input type="text" name="fields[0][name]" class="form-control field-name"  Value="prm" disabled>
+                            <input type="text" name="fields[0][name]" class="form-control field-name"  Value="prm" >
                             <select name="fields[0][type]" class="form-control field-type">
                                 <option value="" disabled selected>Select Data Type</option>
                                 <option value="string">String - Alphabets, Numbers, Special Characters</option>
@@ -51,7 +60,7 @@
                                 </label>
                             </div>
                             <div class="translation-container">
-                                <select name="fields[0][translations][]" id="translation-select-0" class="form-control translation-select" multiple>
+                                <select name="translations[]" id="translation-select-0" class="form-control translation-select" multiple>
                                     @if (is_array($languages) && count($languages))
                                         @foreach($languages as $language => $code)
                                             <option value="{{ $code }}">{{ $language }}</option>

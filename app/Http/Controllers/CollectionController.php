@@ -90,27 +90,51 @@ public function index(Request $request)
             'fields.*.nullable' => 'sometimes|boolean',
             'fields.*.default' => 'nullable',
         ]);
-    
+
         $collectionName = $validated['collection_name'];
         $fields = $validated['fields'];
     
+        $translations = $request->translations ?? []; 
+
         // Add default fields to the fields array
         $defaultFields = [
             ['name' => 'code', 'type' => 'string', 'unique' => true],
-            ['name' => 'deleted', 'type' => 'integer'],
-            ['name' => 'created_at', 'type' => 'date'],
-            ['name' => 'updated_at', 'type' => 'date'],
+            ['name' => 'is_active', 'type' => 'integer'],
+            ['name' => 'is_deleted', 'type' => 'integer'],
+            
+            // Add translations as fields dynamically (only if translations exist)
+            [
+                'name' => 'translations',
+                'type' => 'array',
+                'fields' => array_map(function($translation) {
+                    return ['name' => $translation, 'type' => 'string'];
+                }, $translations)
+            ],
+            
+            [
+                'name' => 'system_info',
+                'type' => 'array',
+                'fields' => [
+                    ['name' => 'created_at', 'type' => 'date'],
+                    ['name' => 'created_by', 'type' => 'string'],
+                    ['name' => 'updated_at', 'type' => 'date'],
+                    ['name' => 'updated_by', 'type' => 'string'],
+                    ['name' => 'deleted_at', 'type' => 'date'],
+                    ['name' => 'deleted_by', 'type' => 'string']
+                ]
+            ]
         ];
     
         // Merge the default fields with user-defined fields
         $fieldDefinitions = array_merge($fields, $defaultFields);
     
         try {
-
+            // Connect to MongoDB
             $mongoClient = DB::connection('mongodb')->getMongoClient();
             $database = $mongoClient->selectDatabase('generic_data');
             $database->createCollection($collectionName);
     
+            // Store metadata in the database
             CollectionMetadata::create([
                 'collection_name' => $collectionName,
                 'fields' => $fieldDefinitions,
@@ -123,6 +147,7 @@ public function index(Request $request)
             return redirect()->back()->with('error', 'Failed to create collection: ' . $e->getMessage());
         }
     }
+    
     
     public function show(Request $request, $collectionName)
     {
