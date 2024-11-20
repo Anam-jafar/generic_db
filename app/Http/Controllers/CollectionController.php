@@ -158,10 +158,36 @@ public function index(Request $request)
     
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         $headers = $collectionMetadata ? $collectionMetadata->fields : [];
+        $fields = $collectionMetadata ? $collectionMetadata->fields : [];
     
-        $filter = $showAll ? [] : ['deleted' => 0];
+        // Extract the 'name' from each header field and exclude 'system_info' and 'is_deleted'
+        $headers = array_map(function ($field) {
+            return $field['name'];
+        }, $headers);
+
+        
+        // Remove 'system_info' and 'is_deleted' from the headers
+        $headers = array_filter($headers, function ($header) {
+            return !in_array($header, ['system_info', 'is_deleted', 'translations']);
+        });
+
+        $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
+        
+        foreach ($translations as $translationField) {
+            if (isset($translationField['fields'])) {
+                foreach ($translationField['fields'] as $language) {
+                    $headers[] = 'lan_' . $language['name']; // Add prefix for each language
+                }
+            }
+        }
+
+        
+        // Re-index the array (important because array_filter will leave gaps in the keys)
+        $headers = array_values($headers);
+        
+        $filter = $showAll ? [] : ['is_deleted' => 0];
         $query = DB::connection('mongodb')->getCollection($collectionName)->find($filter)->toArray();
-    
+        
         if ($search) {
             $query = array_filter($query, function($document) use ($search) {
                 foreach ($document as $key => $value) {
@@ -183,10 +209,18 @@ public function index(Request $request)
             }
         }
     
-        $total = count($query);
+        // Remove unwanted fields (e.g., system_info, is_deleted) from the documents
+        $documents = array_map(function($document) {
+            unset($document['system_info'], $document['is_deleted']);
+            return $document;
+        }, $query);
+
+
+        
+        $total = count($documents);
         $currentPage = $request->get('page', 1);
         $offset = ($currentPage - 1) * $perPage;
-        $documents = array_slice($query, $offset, $perPage);
+        $documents = array_slice($documents, $offset, $perPage);
     
         $pagination = [
             'current_page' => $currentPage,

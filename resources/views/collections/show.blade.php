@@ -27,7 +27,6 @@
                 <button type="submit" id="uploadButton" class="btn gdb-button">Upload</button>
             </form>
 
-
             <!-- Download buttons -->
             <div class="collection-download-buttons">
                 <span>Download</span>
@@ -63,9 +62,7 @@
                     <th>#</th>
                     @if (isset($headers))
                         @foreach ($headers as $field)
-                            @if ($field['name'] !== 'created_at' && $field['name'] !== 'updated_at' && $field['name'] !='deleted')
-                                <th>{{ $field['name'] }}</th>
-                            @endif
+                                <th>{{ $field }}</th>
                         @endforeach
                     @endif
                     <th>Actions</th>
@@ -77,8 +74,17 @@
                         <tr>
                             <td>{{ ($pagination['current_page'] - 1) * $pagination['per_page'] + $index + 1 }}</td>
 
-                            @foreach ($document->getArrayCopy() as $key => $value)
-                                @if ($key !== '_id' && $key !== 'created_at' && $key !== 'updated_at' && $key !='deleted')
+                            @foreach ($document as $key => $value)
+                                @if ($key == 'translations')
+                                        @foreach ($value as $translation)
+                                            @foreach ($translation as $lang => $translatedValue)
+                                            <td>
+                                                {{ $translatedValue }}
+                                            </td>
+                                            @endforeach
+                                        @endforeach
+                                   
+                                @elseif($key != '_id')
                                     <td>
                                         @if (is_array($value) || is_object($value))
                                             {{ json_encode($value) }}
@@ -89,8 +95,9 @@
                                 @endif
                             @endforeach
 
+
                             <td class="actions" style="text-align: center;">
-                                @if ($document->deleted)
+                                @if (isset($document['is_deleted']) && $document['is_deleted'] == 1)
                                     <!-- Restore button (for deleted entries) -->
                                     <form method="POST" action="{{ route('collections.restore', [$collectionName, $document['_id']]) }}" class="d-inline">
                                         @csrf
@@ -111,7 +118,7 @@
                 @else
                     <!-- Display message if no data is found -->
                     <tr>
-                        <td colspan="{{ count($headers) + 1 }}" class="no-data-found" style="text-align: center;">
+                        <td colspan="{{ count($headers) + 2}}" class="no-data-found" style="text-align: center;">
                             No data found.
                         </td>
                     </tr>
