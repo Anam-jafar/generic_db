@@ -75,7 +75,8 @@ public function index(Request $request)
 
     public function create()
     {
-        return view('collections.create');
+        $languages = config('gdb_config.languages', []);
+        return view('collections.create', compact('languages'));
     }
 
     public function store(Request $request)
@@ -326,7 +327,7 @@ public function index(Request $request)
             return $field['name']; // Extract field names
         }, $fields);
     
-        $excludedFields = config('gdb_config.excluded_columns');;
+        $excludedFields = config('gdb_config.excluded_columns');
         $headers = array_filter($headers, fn($field) => !in_array($field, $excludedFields));
         
         $headers = array_values($headers);

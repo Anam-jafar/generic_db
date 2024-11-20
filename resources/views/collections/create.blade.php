@@ -32,7 +32,7 @@
                     <!-- First Field Group -->
                     <div class="field-group">
                         <div class="field-inputs">
-                            <input type="text" name="fields[0][name]" class="form-control field-name" placeholder="Field Name" required>
+                            <input type="text" name="fields[0][name]" class="form-control field-name"  Value="prm" disabled>
                             <select name="fields[0][type]" class="form-control field-type">
                                 <option value="" disabled selected>Select Data Type</option>
                                 <option value="string">String - Alphabets, Numbers, Special Characters</option>
@@ -41,6 +41,28 @@
                                 <option value="boolean">Boolean - [True, False] - [0,1]</option>
                             </select>
                         </div>
+
+                        <!-- Translations Section -->
+                        <div class="form-group mt-4">
+                            <div class="label-container">
+                                <label for="translations">Translations
+                                    <i class="fas fa-info-circle info-icon"></i>
+                                    <span class="info-text">Add translations in multiple languages. Search and select languages to add translations as tags.</span>
+                                </label>
+                            </div>
+                            <div class="translation-container">
+                                <select name="fields[0][translations][]" id="translation-select-0" class="form-control translation-select" multiple>
+                                    @if (is_array($languages) && count($languages))
+                                        @foreach($languages as $language => $code)
+                                            <option value="{{ $code }}">{{ $language }}</option>
+                                        @endforeach
+                                    @else
+                                        <option value="" disabled>No languages available</option>
+                                    @endif
+                                </select>
+                            </div>
+                        </div>
+
                         <div class="field-options">
                             <div class="label-container">
                                 <label>Options
@@ -111,4 +133,6 @@
         </form>
     </div>
 </div>
+
+
 @endsection

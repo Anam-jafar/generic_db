@@ -124,5 +124,11 @@ $(document).ready(function() {
         // Append the new field group to the container
         document.getElementById('fields-container').insertAdjacentHTML('beforeend', fieldGroup);
     });
+
+
+    $('.translation-select').select2({
+        placeholder: "Add languages",
+        allowClear: true,
+    });
     
 });
