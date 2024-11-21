@@ -74,8 +74,8 @@
 
                             @foreach ($document as $key => $value)
                                 @if ($key == 'translations')
-                                    <td>
-                                        <button class="btn btn-sm btn-info" onclick="showTranslationsPopup({{ json_encode($value) }})">View Translations</button>
+                                    <td style="text-align: center;">
+                                        <button class="btn btn-sm btn-dark"  style="background-color: #0C2D57 !important;"onclick="showTranslationsPopup({{ json_encode($value) }})">Translations</button>
                                     </td>
                                 @elseif($key != '_id'  && $key != 'is_deleted')
                                     <td>
@@ -95,12 +95,12 @@
                                         <button type="submit" class="btn btn-sm btn-success">Restore</button>
                                     </form>
                                 @else
+                                    <a href="{{ route('collections.edit', [$collectionName, $document['_id']]) }}" class="btn btn-sm btn-info">Edit</a>
                                     <form method="POST" action="{{ route('collections.destroy', [$collectionName, $document['_id']]) }}" onsubmit="return confirm('Are you sure you want to delete this item?');" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                                     </form>
-                                    <a href="{{ route('collections.edit', [$collectionName, $document['_id']]) }}" class="btn btn-sm btn-warning">Edit</a>
                                 @endif
                             </td>
                         </tr>

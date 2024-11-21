@@ -47,7 +47,7 @@ public function index(Request $request)
         }
         $collectionSize = DB::connection('mongodb')
                             ->getCollection($collectionName)
-                            ->countDocuments(['deleted' => 0]);
+                            ->countDocuments(['is_deleted' => 0]);
 
         if (empty($search) || stripos($collectionName, $search) !== false) {
             $collectionsArray[] = ['name' => $collectionName, 'size' => $collectionSize];
@@ -91,7 +91,7 @@ public function index(Request $request)
             'fields.*.default' => 'nullable',
         ]);
 
-        $collectionName = $validated['collection_name'];
+        $collectionName = strtolower(str_replace(' ', '_', $validated['collection_name']));
         $fields = $validated['fields'];
     
         $translations = $request->translations ?? []; 
@@ -101,27 +101,32 @@ public function index(Request $request)
             ['name' => 'code', 'type' => 'string', 'unique' => true],
             ['name' => 'is_active', 'type' => 'integer'],
             ['name' => 'is_deleted', 'type' => 'integer'],
-            
-            // Add translations as fields dynamically (only if translations exist)
-            [
+
+            // Add translations only if $translations is not empty
+            // Assuming $translations is an array like ['en', 'bn', 'ms']
+        ];
+
+        // Only add translations field if translations array is not empty
+        if (!empty($translations)) {
+            $defaultFields[] = [
                 'name' => 'translations',
                 'type' => 'array',
                 'fields' => array_map(function($translation) {
                     return ['name' => $translation, 'type' => 'string'];
                 }, $translations)
-            ],
-            
-            [
-                'name' => 'system_info',
-                'type' => 'array',
-                'fields' => [
-                    ['name' => 'created_at', 'type' => 'date'],
-                    ['name' => 'created_by', 'type' => 'string'],
-                    ['name' => 'updated_at', 'type' => 'date'],
-                    ['name' => 'updated_by', 'type' => 'string'],
-                    ['name' => 'deleted_at', 'type' => 'date'],
-                    ['name' => 'deleted_by', 'type' => 'string']
-                ]
+            ];
+        }
+
+        $defaultFields[] = [
+            'name' => 'system_info',
+            'type' => 'array',
+            'fields' => [
+                ['name' => 'created_at', 'type' => 'date'],
+                ['name' => 'created_by', 'type' => 'string'],
+                ['name' => 'updated_at', 'type' => 'date'],
+                ['name' => 'updated_by', 'type' => 'string'],
+                ['name' => 'deleted_at', 'type' => 'date'],
+                ['name' => 'deleted_by', 'type' => 'string']
             ]
         ];
     
@@ -340,35 +345,46 @@ public function index(Request $request)
         
         foreach ($rows as $row) {
             $insertRow = array_combine($headers, $row);
+            $insertRow['is_active'] = 1;
             $insertRow['is_deleted'] = 0;
             
             // Handle Auto Generate Code
             if ($autoGenerateCode && !isset($insertRow['code'])) {
-                $insertRow['code'] = (string) $nextCode; // Assign the generated code
+                $insertRow['code'] = str_pad((string) $nextCode, 4, '0', STR_PAD_LEFT);// Assign the generated code
                 $nextCode++; // Increment the code for the next entry
             }
-    
-            // Create the translations field as an object (not an array)
-            $translations = new \stdClass();
 
-            $en = 'en';
-            $translations->$en = $insertRow['prm'];
-    
-            // Loop through the insertRow and identify 'lan_' prefixed fields
-            foreach ($insertRow as $field => $value) {
-                // If the field starts with 'lan_' we will move it to the translations object
-                if (strpos($field, 'lan_') === 0) {
-                    $langCode = substr($field, 4); // Remove 'lan_' prefix
-                    $translations->$langCode = $value;
-                    unset($insertRow[$field]); // Remove the original 'lan_' field
+
+            $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
+            ->findOne(['collection_name' => $collectionName]);
+
+            $fieldsArray = iterator_to_array($collectionMetadata['fields']);
+
+            // Check if 'translations' exists in the field names
+            if (in_array('translations', array_column($fieldsArray, 'name'))) {
+
+                // Create the translations field as an object (not an array)
+                $translations = new \stdClass();
+
+                $en = 'en';
+                $translations->$en = $insertRow['prm'];
+        
+                // Loop through the insertRow and identify 'lan_' prefixed fields
+                foreach ($insertRow as $field => $value) {
+                    // If the field starts with 'lan_' we will move it to the translations object
+                    if (strpos($field, 'lan_') === 0) {
+                        $langCode = substr($field, 4); // Remove 'lan_' prefix
+                        $translations->$langCode = $value;
+                        unset($insertRow[$field]); // Remove the original 'lan_' field
+                    }
                 }
-            }
-            
-    
-            // Add the translations object to the row if it has any data
-            if (!empty((array) $translations)) {
-                $insertRow['translations'] = $translations; // Store translations as an object
-            }
+                
+        
+                // Add the translations object to the row if it has any data
+                if (!empty((array) $translations)) {
+                    $insertRow['translations'] = $translations; // Store translations as an object
+                }
+            }    
     
             // Handle timestamps
             $createdAt = Carbon::now();
@@ -525,7 +541,7 @@ public function index(Request $request)
     
         if ($includeData) {
             $documents = DB::connection('mongodb')->getCollection($collectionName)
-                            ->find(['deleted' => 0])
+                            ->find(['is_deleted' => 0])
                             ->toArray();
     
             $excelData = [$headers]; // Start with headers as the first row
@@ -638,23 +654,31 @@ public function index(Request $request)
             ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
     
         // Extract existing translations to preserve unchanged ones
-        $existingTranslations = $documentBefore['translations'] ?? [];
-    
-        // Extract translations from lan_* fields
-        $translations = $existingTranslations; // Start with existing translations
-        
-        foreach ($data as $key => $value) {
-            if (str_starts_with($key, 'lan_')) {
-                $langCode = substr($key, 4); // Remove 'lan_' prefix
-                $translations[$langCode] = $value; // Add/overwrite the translation
-                unset($data[$key]); // Remove the lan_* field from main data
-            }
-        }
+        $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
+        ->findOne(['collection_name' => $collectionName]);
 
+        $fieldsArray = iterator_to_array($collectionMetadata['fields']);
+
+        // Check if 'translations' exists in the field names
+        if (in_array('translations', array_column($fieldsArray, 'name'))) {
+                $existingTranslations = $documentBefore['translations'] ?? [];
         
-    
-        // Add translations back into the data array
-        $data['translations'] = $translations;
+            // Extract translations from lan_* fields
+                $translations = $existingTranslations; // Start with existing translations
+            
+                foreach ($data as $key => $value) {
+                    if (str_starts_with($key, 'lan_')) {
+                        $langCode = substr($key, 4); // Remove 'lan_' prefix
+                        $translations[$langCode] = $value; // Add/overwrite the translation
+                        unset($data[$key]); // Remove the lan_* field from main data
+                    }
+                }
+
+            
+            
+                // Add translations back into the data array
+                $data['translations'] = $translations;
+        }
     
         // Perform the update operation
         DB::connection('mongodb')->getCollection($collectionName)

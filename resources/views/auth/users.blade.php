@@ -35,11 +35,11 @@
                         <td class="custom-users-admin">{{ $user->is_admin ? 'Yes' : 'No' }}</td>
                         <td class="custom-users-created">{{ $user->created_at }}</td>
                         <td class="custom-users-actions">
-                            <a href="{{ route('users.edit', $user->id) }}" class="custom-btn-action custom-btn-edit">Edit</a>
+                            <a href="{{ route('users.edit', $user->id) }}" class="btn btn-sm btn-info">Edit</a>
                             <form action="{{ route('users.destroy', $user->id) }}" method="POST" style="display: inline-block;">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="custom-btn-action custom-btn-delete" onclick="return confirm('Are you sure you want to delete this user?')">Delete</button>
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this user?')">Delete</button>
                             </form>
                         </td>
                     </tr>
