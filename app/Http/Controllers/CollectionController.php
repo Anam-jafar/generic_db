@@ -168,18 +168,18 @@ public function index(Request $request)
         
         // Remove 'system_info' and 'is_deleted' from the headers
         $headers = array_filter($headers, function ($header) {
-            return !in_array($header, ['system_info', 'is_deleted', 'translations']);
+            return !in_array($header, ['system_info', 'is_deleted']);
         });
 
-        $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
+        // $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
         
-        foreach ($translations as $translationField) {
-            if (isset($translationField['fields'])) {
-                foreach ($translationField['fields'] as $language) {
-                    $headers[] = 'lan_' . $language['name']; // Add prefix for each language
-                }
-            }
-        }
+        // foreach ($translations as $translationField) {
+        //     if (isset($translationField['fields'])) {
+        //         foreach ($translationField['fields'] as $language) {
+        //             $headers[] = 'lan_' . $language['name']; // Add prefix for each language
+        //         }
+        //     }
+        // }
 
         
         // Re-index the array (important because array_filter will leave gaps in the keys)

@@ -1,19 +1,19 @@
 @extends('layouts.app')
 
 @section('content')
-    <!-- First Card: Collection name, upload, and download -->
     <div class="collection-card">
         <h1 class="collection-header">Collection: {{ $collectionName }}</h1>
 
-            @if (session('success'))
-                <div class="collection-alert">{{ session('success') }}</div>
-            @endif
-            @if (session('warning'))
-                <div class="collection-warning">{{ session('warning') }}</div>
-            @endif
-            @if (session('error'))
-                <div class="collection-danger">{{ session('error') }}</div>
-            @endif
+        <!-- Alert messages -->
+        @if (session('success'))
+            <div class="collection-alert">{{ session('success') }}</div>
+        @endif
+        @if (session('warning'))
+            <div class="collection-warning">{{ session('warning') }}</div>
+        @endif
+        @if (session('error'))
+            <div class="collection-danger">{{ session('error') }}</div>
+        @endif
 
         <div class="flex-container">
             <!-- Upload form -->
@@ -36,7 +36,6 @@
         </div>
     </div>
 
-    <!-- Second Card: Show All Entries, Search Form, and Table -->
     <div class="collection-card">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <!-- Left side: Show All Entries -->
@@ -55,7 +54,6 @@
             </div>
         </div>
 
-        <!-- Table -->
         <table class="collection-table">
             <thead>
                 <tr>
@@ -76,12 +74,9 @@
 
                             @foreach ($document as $key => $value)
                                 @if ($key == 'translations')
-                                        @foreach ($value as $translation)
-                                            <td>
-                                                {{ $translation }}
-                                            </td>
-                                        @endforeach
-                                   
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="showTranslationsPopup({{ json_encode($value) }})">View Translations</button>
+                                    </td>
                                 @elseif($key != '_id')
                                     <td>
                                         @if (is_array($value) || is_object($value))
@@ -93,16 +88,13 @@
                                 @endif
                             @endforeach
 
-
                             <td class="actions" style="text-align: center;">
                                 @if (isset($document['is_deleted']) && $document['is_deleted'] == 1)
-                                    <!-- Restore button (for deleted entries) -->
                                     <form method="POST" action="{{ route('collections.restore', [$collectionName, $document['_id']]) }}" class="d-inline">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-success">Restore</button>
                                     </form>
                                 @else
-                                    <!-- Regular delete and edit actions -->
                                     <form method="POST" action="{{ route('collections.destroy', [$collectionName, $document['_id']]) }}" onsubmit="return confirm('Are you sure you want to delete this item?');" class="d-inline">
                                         @csrf
                                         @method('DELETE')
@@ -114,9 +106,8 @@
                         </tr>
                     @endforeach
                 @else
-                    <!-- Display message if no data is found -->
                     <tr>
-                        <td colspan="{{ count($headers) + 2}}" class="no-data-found" style="text-align: center;">
+                        <td colspan="{{ count($headers) + 2 }}" class="no-data-found" style="text-align: center;">
                             No data found.
                         </td>
                     </tr>
@@ -126,12 +117,9 @@
 
         <!-- Pagination Controls -->
         <div class="collection-pagination">
-            <!-- Left side: Showing X to Y of Z entries -->
             <div class="pagination-info">
                 Showing {{ ($pagination['current_page'] - 1) * $pagination['per_page'] + 1 }} to {{ min($pagination['current_page'] * $pagination['per_page'], $pagination['total']) }} of {{ $pagination['total'] }} entries
             </div>
-
-            <!-- Center: Pagination links (Previous/Next) -->
             <div class="pagination-controls">
                 @if ($pagination['current_page'] > 1)
                     <a href="{{ route('collections.show', [$collectionName, 'page' => $pagination['current_page'] - 1, 'search' => $search, 'per_page' => $perPage]) }}" class="btn btn-sm pagination-btn">Previous</a>
@@ -140,8 +128,6 @@
                     <a href="{{ route('collections.show', [$collectionName, 'page' => $pagination['current_page'] + 1, 'search' => $search, 'per_page' => $perPage]) }}" class="btn btn-sm pagination-btn">Next</a>
                 @endif
             </div>
-
-            <!-- Right side: Entries per page -->
             <div class="per-page-form">
                 <label for="perPage">Entries</label>
                 <select name="perPage" id="perPage" class="form-control form-control-sm" onchange="window.location.href='{{ route('collections.show', [$collectionName, 'search' => $search, 'page' => 1]) }}&per_page=' + this.value;">
@@ -152,6 +138,25 @@
             </div>
         </div>
     </div>
+
+    <!-- Translations Modal -->
+    <div id="translationsModal" class="translation-pop-up-modal">
+        <div class="translation-pop-up-content">
+            <button class="translation-pop-up-close-btn" onclick="closeTranslationsPopup()">&times;</button>
+            <h3 class="translation-pop-up-title">Translations</h3>
+            <table class="translation-pop-up-table">
+                <thead>
+                    <tr>
+                        <th>Language Code</th>
+                        <th>Translation</th>
+                    </tr>
+                </thead>
+                <tbody id="translationsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
@@ -168,5 +173,28 @@
             const showAll = this.checked;
             window.location.href = "{{ route('collections.show', $collectionName) }}?show_all=" + (showAll ? '1' : '0') + "&search={{ $search }}&per_page={{ $perPage }}";
         });
+        function showTranslationsPopup(translations) {
+            let tableHtml = '';
+            for (let langCode in translations) {
+                tableHtml += `
+                    <tr>
+                        <td>${langCode}</td>
+                        <td>${translations[langCode]}</td>
+                    </tr>
+                `;
+            }
+            document.getElementById('translationsTableBody').innerHTML = tableHtml;
+            const modal = document.getElementById('translationsModal');
+            modal.classList.add('d-flex'); // Ensure it uses flexbox for centering
+            modal.style.display = 'flex'; // Show the modal
+        }
+
+        function closeTranslationsPopup() {
+            const modal = document.getElementById('translationsModal');
+            modal.style.display = 'none'; // Hide the modal
+            modal.classList.remove('d-flex'); // Remove the flex class for safety
+        }
+
+
     </script>
 @endsection
