@@ -530,7 +530,10 @@ public function index(Request $request)
         foreach ($translations as $translationField) {
             if (isset($translationField['fields'])) {
                 foreach ($translationField['fields'] as $language) {
-                    $headers[] = 'lan_' . $language['name']; // Add prefix for each language
+                    if($language['name'] !=='en'){
+                        $headers[] = 'lan_' . $language['name']; // Add prefix for each language
+                    }
+
                 }
             }
         }
