@@ -608,7 +608,7 @@ public function index(Request $request)
     public function edit($collectionName, $id)
     {
         $document = DB::connection('mongodb')->getCollection($collectionName)
-                          ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+                          ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
     
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
         if (!$collectionMetadata) {
@@ -624,23 +624,53 @@ public function index(Request $request)
         return view('collections.edit', compact('collectionName', 'document', 'fieldTypes'));
     }
     
-
     public function update(Request $request, $collectionName, $id)
     {
+        // Validate that data is provided as an array
         $request->validate([
             'data' => 'required|array',
         ]);
-
+    
+        $data = $request->input('data');
+    
+        // Retrieve the existing document
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
+    
+        // Extract existing translations to preserve unchanged ones
+        $existingTranslations = $documentBefore['translations'] ?? [];
+    
+        // Extract translations from lan_* fields
+        $translations = $existingTranslations; // Start with existing translations
         
+        foreach ($data as $key => $value) {
+            if (str_starts_with($key, 'lan_')) {
+                $langCode = substr($key, 4); // Remove 'lan_' prefix
+                $translations[$langCode] = $value; // Add/overwrite the translation
+                unset($data[$key]); // Remove the lan_* field from main data
+            }
+        }
+
+        
+    
+        // Add translations back into the data array
+        $data['translations'] = $translations;
+    
+        // Perform the update operation
         DB::connection('mongodb')->getCollection($collectionName)
-            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => $request->input('data')]);
-
+            ->updateOne(
+                ['_id' => new \MongoDB\BSON\ObjectId($id)],
+                ['$set' => $data]
+            );
+    
+        // Log the update operation
         ActivityLogService::log('update', $collectionName, $documentBefore);
-
-        return redirect()->route('collections.show', $collectionName)->with('success', 'Document updated successfully.');
+    
+        // Redirect back with success message
+        return redirect()->route('collections.show', $collectionName)
+            ->with('success', 'Document updated successfully.');
     }
+    
 
     
 
