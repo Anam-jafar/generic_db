@@ -171,33 +171,26 @@ public function index(Request $request)
             return !in_array($header, ['system_info', 'is_deleted']);
         });
 
-        // $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
-        
-        // foreach ($translations as $translationField) {
-        //     if (isset($translationField['fields'])) {
-        //         foreach ($translationField['fields'] as $language) {
-        //             $headers[] = 'lan_' . $language['name']; // Add prefix for each language
-        //         }
-        //     }
-        // }
-
-        
-        // Re-index the array (important because array_filter will leave gaps in the keys)
         $headers = array_values($headers);
         
         $filter = $showAll ? [] : ['is_deleted' => 0];
         $query = DB::connection('mongodb')->getCollection($collectionName)->find($filter)->toArray();
         
         if ($search) {
-            $query = array_filter($query, function($document) use ($search) {
+            $query = array_filter($query, function ($document) use ($search) {
                 foreach ($document as $key => $value) {
-                    if (strpos(strtolower((string)$value), strtolower($search)) !== false) {
+                    // Convert non-string types to a string for comparison
+                    if (is_array($value) || $value instanceof \MongoDB\Model\BSONDocument) {
+                        $value = json_encode($value); // Serialize complex types
+                    }
+                    if (is_string($value) && strpos(strtolower($value), strtolower($search)) !== false) {
                         return true;
                     }
                 }
                 return false;
             });
         }
+        
     
         if ($autoGenerateCode) {
             $nextCode = count($query) + 1; 
@@ -211,7 +204,7 @@ public function index(Request $request)
     
         // Remove unwanted fields (e.g., system_info, is_deleted) from the documents
         $documents = array_map(function($document) {
-            unset($document['system_info'], $document['is_deleted']);
+            unset($document['system_info']);
             return $document;
         }, $query);
 
@@ -654,10 +647,10 @@ public function index(Request $request)
     public function destroy($collectionName, $id)
     {
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'deleted' => 0]);
+                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
 
         DB::connection('mongodb')->getCollection($collectionName)
-            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => ['deleted' => 1]]);
+            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => ['is_deleted' => 1]]);
 
         ActivityLogService::log('delete', $collectionName, $documentBefore);
 
@@ -676,8 +669,8 @@ public function index(Request $request)
             ['_id' => new \MongoDB\BSON\ObjectId($id)],
             [
                 '$set' => [
-                    'deleted' => 0, 
-                    'updated_at' => new UTCDateTime(Carbon::now()), 
+                    'is_deleted' => 0, 
+                    // 'updated_at' => new UTCDateTime(Carbon::now()), 
                 ]
             ]
         );

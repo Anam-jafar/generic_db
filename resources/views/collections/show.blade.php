@@ -77,7 +77,7 @@
                                     <td>
                                         <button class="btn btn-sm btn-info" onclick="showTranslationsPopup({{ json_encode($value) }})">View Translations</button>
                                     </td>
-                                @elseif($key != '_id')
+                                @elseif($key != '_id'  && $key != 'is_deleted')
                                     <td>
                                         @if (is_array($value) || is_object($value))
                                             {{ json_encode($value) }}
