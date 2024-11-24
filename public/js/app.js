@@ -130,5 +130,27 @@ $(document).ready(function() {
         placeholder: "Add languages",
         allowClear: true,
     });
+
+    const translationsToggle = document.getElementById('translations-toggle');
+    const languageOptions = document.getElementById('language-options');
+    const firstFieldName = document.querySelector('input[name="fields[0][name]"]');
+
+    translationsToggle.addEventListener('change', () => {
+        if (translationsToggle.checked) {
+            // Ensure the first field's name is "prm"
+            if (firstFieldName && firstFieldName.value === 'prm') {
+                languageOptions.style.display = 'block';
+                firstFieldName.readOnly = true; // Disable editing the first field's name
+            } else {
+                alert('The first field name must have a value of "prm" to enable translations.');
+                translationsToggle.checked = false;
+            }
+        } else {
+            languageOptions.style.display = 'none';
+            if (firstFieldName) {
+                firstFieldName.readOnly = false; // Re-enable editing if checkbox is unchecked
+            }
+        }
+    });
     
 });

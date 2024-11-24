@@ -73,84 +73,63 @@
                         </div> -->
 
 
-                        <!-- <div class="field-options mt-4">
-                            <div class="label-container">
-                                <label>Translations
-                                    <i class="fas fa-info-circle info-icon"></i>
-                                    <span class="info-text">Select languages to add translations as tags.</span>
-                                </label>
-                            </div>
-                            <div class="form-check-inline-container">
-                                @if (is_array($languages) && count($languages))
-                                    @foreach($languages as $language => $code)
-                                        <div class="form-check-inline">
-                                            <input 
-                                                type="checkbox" 
-                                                name="translations[]" 
-                                                id="translation-{{ $code }}" 
-                                                value="{{ $code }}" 
-                                                class="form-check-input"
-                                                @if (is_array(old('translations')) && in_array($code, old('translations'))) checked @endif
-                                            >
-                                            <label for="translation-{{ $code }}" class="form-check-label">
-                                                {{ $language }}
-                                            </label>
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <p>No languages available</p>
-                                @endif
-                            </div>
-                        </div> -->
-
                         <div class="field-options mt-4">
-                            <div class="label-container">
-                                <label>Translations
-                                    <i class="fas fa-info-circle info-icon"></i>
-                                    <span class="info-text">Select languages to add translations.</span>
+                            <!-- Translations Toggle -->
+                            <div class="form-check">
+                                <input 
+                                    type="checkbox" 
+                                    id="translations-toggle" 
+                                    class="form-check-input"
+                                >
+                                <label for="translations-toggle" class="form-check-label">
+                                    Translations
+                                    <i class="fas fa-info-circle info-icon" title="Enable translations for multiple languages."></i>
                                 </label>
                             </div>
-                            <div class="form-check-inline-container">
-                                <!-- English Checkbox: Checked and Disabled -->
-                                <div class="form-check-inline">
-                                    <input 
-                                        type="checkbox" 
-                                        id="translation-en" 
-                                        name="translations[]" 
-                                        value="en" 
-                                        class="form-check-input" 
-                                        checked 
-                                        disabled
-                                    >
-                                    <label for="translation-en" class="form-check-label">English</label>
-                                </div>
 
-                                <!-- Malay Checkbox -->
-                                <div class="form-check-inline">
-                                    <input 
-                                        type="checkbox" 
-                                        id="translation-ms" 
-                                        name="translations[]" 
-                                        value="ms" 
-                                        class="form-check-input"
-                                    >
-                                    <label for="translation-ms" class="form-check-label">Malay</label>
-                                </div>
+                            <!-- Language Options -->
+                            <div id="language-options" style="display: none;" class="mt-4">
+                                <div class="form-check-inline-container">
+                                    <!-- English Checkbox: Checked and Disabled -->
+                                    <div class="form-check-inline">
+                                        <input 
+                                            type="checkbox" 
+                                            id="translation-en" 
+                                            name="translations[]" 
+                                            value="en" 
+                                            class="form-check-input" 
+                                            checked 
+                                            disabled
+                                        >
+                                        <label for="translation-en" class="form-check-label">English</label>
+                                    </div>
 
-                                <!-- Indonesian Checkbox -->
-                                <div class="form-check-inline">
-                                    <input 
-                                        type="checkbox" 
-                                        id="translation-id" 
-                                        name="translations[]" 
-                                        value="id" 
-                                        class="form-check-input"
-                                    >
-                                    <label for="translation-id" class="form-check-label">Indonesian</label>
+                                    <!-- Malay Checkbox -->
+                                    <div class="form-check-inline">
+                                        <input 
+                                            type="checkbox" 
+                                            id="translation-ms" 
+                                            name="translations[]" 
+                                            value="ms" 
+                                            class="form-check-input"
+                                        >
+                                        <label for="translation-ms" class="form-check-label">Malay</label>
+                                    </div>
+
+                                    <!-- Indonesian Checkbox -->
+                                    <div class="form-check-inline">
+                                        <input 
+                                            type="checkbox" 
+                                            id="translation-id" 
+                                            name="translations[]" 
+                                            value="id" 
+                                            class="form-check-input"
+                                        >
+                                        <label for="translation-id" class="form-check-label">Indonesian</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
 
 
                         <div class="field-options mt-4">
@@ -223,6 +202,7 @@
         </form>
     </div>
 </div>
+
 
 
 @endsection
