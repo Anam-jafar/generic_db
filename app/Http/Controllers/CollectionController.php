@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+
 
 use App\Models\CollectionMetadata;
 use App\Services\ActivityLogService;
@@ -388,9 +390,9 @@ public function index(Request $request)
     
             // Handle timestamps
             $createdAt = Carbon::now();
-            $createdBy = 'ADMIN';
+            $createdBy = Auth::user()->email;
             $updatedAt = Carbon::now();
-            $updatedBy = 'ADMIN';
+            $updatedBy = Auth::user()->email;
             $deletedAt = null;
             $deletedBy = null;
             
