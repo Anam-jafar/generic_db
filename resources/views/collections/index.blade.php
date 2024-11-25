@@ -41,7 +41,7 @@
 <div class="collection-pagination">
     <!-- Left side: Showing X to Y of Z entries -->
     <div class="pagination-info">
-        Showing {{ ($pagination['current_page'] - 1) * $pagination['per_page'] + 1 }} to {{ min($pagination['current_page'] * $pagination['per_page'], $pagination['total']) }} of {{ $pagination['total'] }} entries
+        Showing {{ ($pagination['current_page'] - 1) * $pagination['per_page']  }} to {{ min($pagination['current_page'] * $pagination['per_page'], $pagination['total']) }} of {{ $pagination['total'] }} entries
     </div>
 
     <!-- Center: Pagination links (Previous/Next) -->
