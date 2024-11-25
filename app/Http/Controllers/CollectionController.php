@@ -30,57 +30,98 @@ class CollectionController extends Controller
         $this->database = (new MongoDBClient)->selectDatabase('generic_data');
     }
 
-public function index(Request $request)
-{
-    $search = $request->get('search', '');
-    $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
-    
-    $mongoClient = DB::connection('mongodb')->getMongoClient();
-    $database = $mongoClient->selectDatabase('generic_data');
-    $collections = $database->listCollections();
 
-    $excludedCollections = config('gdb_config.excluded_collections');
+    /**
+     * Display a paginated list of collections with optional search filtering.
+     *
+     * This function retrieves all collections from the 'generic_data' database, excluding those listed in
+     * the `gdb_config.excluded_collections` configuration. It also allows for an optional search query 
+     * that filters collections by name. The function then paginates the results and passes them to the view.
+     *
+     * @param Request $request The HTTP request containing parameters for search, pagination, etc.
+     * 
+     * @return \Illuminate\View\View The view displaying the paginated list of collections.
+     * 
+     * @throws \Illuminate\Database\QueryException If there is an issue with database operations.
+     */
+    public function index(Request $request)
+    {
+        $search = $request->get('search', '');
+        $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
+        
+        $mongoClient = DB::connection('mongodb')->getMongoClient();
+        $database = $mongoClient->selectDatabase('generic_data');
+        $collections = $database->listCollections();
 
-    $collectionsArray = [];
-    foreach ($collections as $collection) {
-        $collectionName = $collection->getName();
-        if (in_array($collectionName, $excludedCollections)) {
-            continue;
+        $excludedCollections = config('gdb_config.excluded_collections');
+
+        $collectionsArray = [];
+        foreach ($collections as $collection) {
+            $collectionName = $collection->getName();
+            if (in_array($collectionName, $excludedCollections)) {
+                continue;
+            }
+            $collectionSize = DB::connection('mongodb')
+                                ->getCollection($collectionName)
+                                ->countDocuments(['is_deleted' => 0]);
+
+            if (empty($search) || stripos($collectionName, $search) !== false) {
+                $collectionsArray[] = ['name' => $collectionName, 'size' => $collectionSize];
+            }
         }
-        $collectionSize = DB::connection('mongodb')
-                            ->getCollection($collectionName)
-                            ->countDocuments(['is_deleted' => 0]);
 
-        if (empty($search) || stripos($collectionName, $search) !== false) {
-            $collectionsArray[] = ['name' => $collectionName, 'size' => $collectionSize];
-        }
+        $total = count($collectionsArray);
+        $currentPage = $request->get('page', 1);
+        $offset = ($currentPage - 1) * $perPage;
+        $currentItems = array_slice($collectionsArray, $offset, $perPage);
+
+        $pagination = [
+            'current_page' => $currentPage,
+            'last_page' => ceil($total / $perPage),
+            'per_page' => $perPage,
+            'total' => $total,
+        ];
+
+        $collections = new LengthAwarePaginator($currentItems, $total, $perPage, $currentPage, [
+            'path' => LengthAwarePaginator::resolveCurrentPath(),
+        ]);
+
+        return view('collections.index', compact('collections', 'pagination', 'search', 'perPage'));
     }
 
-    $total = count($collectionsArray);
-    $currentPage = $request->get('page', 1);
-    $offset = ($currentPage - 1) * $perPage;
-    $currentItems = array_slice($collectionsArray, $offset, $perPage);
-
-    $pagination = [
-        'current_page' => $currentPage,
-        'last_page' => ceil($total / $perPage),
-        'per_page' => $perPage,
-        'total' => $total,
-    ];
-
-    $collections = new LengthAwarePaginator($currentItems, $total, $perPage, $currentPage, [
-        'path' => LengthAwarePaginator::resolveCurrentPath(),
-    ]);
-
-    return view('collections.index', compact('collections', 'pagination', 'search', 'perPage'));
-}
-
+    
+    /**
+     * Show the form for creating a new collection.
+     *
+     * This function prepares and returns the view for creating a new collection. It retrieves a list of 
+     * available languages from the `gdb_config.languages` configuration and passes it to the view to 
+     * allow the user to select a language during the creation process.
+     *
+     * @return \Illuminate\View\View The view displaying the form for creating a new collection.
+     */
     public function create()
     {
         $languages = config('gdb_config.languages', []);
         return view('collections.create', compact('languages'));
     }
 
+
+
+    /**
+     * Store a newly created collection in the database.
+     *
+     * This method processes the creation of a new collection. It first validates the incoming request data,
+     * including the collection name and fields. The fields are processed and standardized (e.g., converting 
+     * spaces to underscores and ensuring uniqueness). Default fields such as `code`, `is_active`, `is_deleted`, 
+     * `translations`, and `system_info` are added to the collection. The collection is then created in MongoDB, 
+     * and metadata for the collection is stored in the `CollectionMetadata` model. If the collection creation 
+     * is successful, the user is redirected to the collection index with a success message. If there is an error, 
+     * the user is redirected back with an error message.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing collection data.
+     *
+     * @return \Illuminate\Http\RedirectResponse Redirects back to the collection index with a success or error message.
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -94,7 +135,7 @@ public function index(Request $request)
         ]);
 
         $collectionName = strtolower(str_replace(' ', '_', $validated['collection_name']));
-        // Transform field names to lowercase with underscores
+
         $fields = array_map(function ($field) {
             $field['name'] = strtolower(str_replace(' ', '_', $field['name']));
             return $field;
@@ -102,19 +143,12 @@ public function index(Request $request)
     
         $translations = $request->translations ?? []; 
 
-
-
-        // Add default fields to the fields array
         $defaultFields = [
             ['name' => 'code', 'type' => 'string', 'unique' => true],
             ['name' => 'is_active', 'type' => 'integer'],
             ['name' => 'is_deleted', 'type' => 'integer'],
-
-            // Add translations only if $translations is not empty
-            // Assuming $translations is an array like ['en', 'bn', 'ms']
         ];
 
-        // Only add translations field if translations array is not empty
         if (!empty($translations)) {
             $defaultFields[] = [
                 'name' => 'translations',
@@ -138,16 +172,14 @@ public function index(Request $request)
             ]
         ];
     
-        // Merge the default fields with user-defined fields
         $fieldDefinitions = array_merge($fields, $defaultFields);
     
         try {
-            // Connect to MongoDB
+
             $mongoClient = DB::connection('mongodb')->getMongoClient();
             $database = $mongoClient->selectDatabase('generic_data');
             $database->createCollection($collectionName);
     
-            // Store metadata in the database
             CollectionMetadata::create([
                 'collection_name' => $collectionName,
                 'fields' => $fieldDefinitions,
@@ -160,8 +192,23 @@ public function index(Request $request)
             return redirect()->back()->with('error', 'Failed to create collection: ' . $e->getMessage());
         }
     }
-    
-    
+
+
+    /**
+     * Display the documents of a specific collection.
+     *
+     * This method retrieves and displays the documents of a specified collection from MongoDB. It allows the user
+     * to filter and search through the documents based on the `search` query parameter. The user can also choose
+     * to view all documents, including those marked as deleted, using the `show_all` parameter. Additionally, if the
+     * `autoGenerateCode` checkbox is checked, the method automatically generates a unique `code` field for each document.
+     * The results are paginated based on the `per_page` parameter, and the collection's metadata (fields) are used to 
+     * format the document headers.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing the filtering and pagination data.
+     * @param string $collectionName The name of the collection to display.
+     *
+     * @return \Illuminate\View\View The view displaying the collection's documents, pagination, and metadata.
+     */
     public function show(Request $request, $collectionName)
     {
         $showAll = $request->get('show_all', false);
@@ -173,13 +220,11 @@ public function index(Request $request)
         $headers = $collectionMetadata ? $collectionMetadata->fields : [];
         $fields = $collectionMetadata ? $collectionMetadata->fields : [];
     
-        // Extract the 'name' from each header field and exclude 'system_info' and 'is_deleted'
         $headers = array_map(function ($field) {
             return $field['name'];
         }, $headers);
 
         
-        // Remove 'system_info' and 'is_deleted' from the headers
         $headers = array_filter($headers, function ($header) {
             return !in_array($header, ['system_info', 'is_deleted']);
         });
@@ -215,7 +260,6 @@ public function index(Request $request)
             }
         }
     
-        // Remove unwanted fields (e.g., system_info, is_deleted) from the documents
         $documents = array_map(function($document) {
             unset($document['system_info']);
             return $document;
@@ -238,7 +282,25 @@ public function index(Request $request)
         return view('collections.show', compact('collectionName', 'documents', 'showAll', 'total', 'perPage', 'search', 'pagination', 'headers'));
     }
     
-    
+    /**
+     * Insert data into a specified MongoDB collection.
+     *
+     * This method processes the insertion of multiple rows of data into a MongoDB collection. It validates the fields 
+     * based on the collection's metadata, including constraints like `unique`, `nullable`, and field types. The method 
+     * also supports auto-generating a `code` field for the documents if the `autoGenerateCode` flag is set. Additionally,
+     * it handles the creation of a `translations` field, moving language-specific fields (e.g., `lan_en`, `lan_fr`) into 
+     * the `translations` object. System fields such as `is_active`, `is_deleted`, and `system_info` (timestamps and user info) 
+     * are automatically added to each row. The rows are then inserted into the specified collection in MongoDB.
+     *
+     * @param string $collectionName The name of the MongoDB collection where the data should be inserted.
+     * @param array $headers An array of field names (headers) for the data to be inserted.
+     * @param array $rows An array of data rows, where each row is an array of field values corresponding to the headers.
+     * @param bool $autoGenerateCode Flag to determine if the `code` field should be automatically generated.
+     *
+     * @return void This method does not return any value but performs the data insertion in the MongoDB collection.
+     * 
+     * @throws \Exception If any validation constraint is violated (e.g., unique, nullable, field type mismatch).
+     */
     private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
     {
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
@@ -259,9 +321,8 @@ public function index(Request $request)
         $nextCode = 0;
         
         if ($autoGenerateCode) {
-            // Get the current count of documents in the collection to set the starting point for code generation
             $existingCount = DB::connection('mongodb')->getCollection($collectionName)->count();
-            $nextCode = $existingCount + 1; // Start from the length of the collection
+            $nextCode = $existingCount + 1; 
         }
         
         foreach ($rows as $row) {
@@ -269,10 +330,9 @@ public function index(Request $request)
             $insertRow['is_active'] = 1;
             $insertRow['is_deleted'] = 0;
             
-            // Handle Auto Generate Code
             if ($autoGenerateCode && !isset($insertRow['code'])) {
-                $insertRow['code'] = str_pad((string) $nextCode, 4, '0', STR_PAD_LEFT);// Assign the generated code
-                $nextCode++; // Increment the code for the next entry
+                $insertRow['code'] = str_pad((string) $nextCode, 4, '0', STR_PAD_LEFT);
+                $nextCode++;
             }
 
 
@@ -281,33 +341,26 @@ public function index(Request $request)
 
             $fieldsArray = iterator_to_array($collectionMetadata['fields']);
 
-            // Check if 'translations' exists in the field names
             if (in_array('translations', array_column($fieldsArray, 'name'))) {
 
-                // Create the translations field as an object (not an array)
                 $translations = new \stdClass();
 
                 $en = 'en';
                 $translations->$en = $insertRow['prm'];
         
-                // Loop through the insertRow and identify 'lan_' prefixed fields
                 foreach ($insertRow as $field => $value) {
-                    // If the field starts with 'lan_' we will move it to the translations object
                     if (strpos($field, 'lan_') === 0) {
-                        $langCode = substr($field, 4); // Remove 'lan_' prefix
+                        $langCode = substr($field, 4); 
                         $translations->$langCode = $value;
-                        unset($insertRow[$field]); // Remove the original 'lan_' field
+                        unset($insertRow[$field]); 
                     }
                 }
-                
         
-                // Add the translations object to the row if it has any data
                 if (!empty((array) $translations)) {
-                    $insertRow['translations'] = $translations; // Store translations as an object
+                    $insertRow['translations'] = $translations; 
                 }
             }    
     
-            // Handle timestamps
             $createdAt = Carbon::now();
             $createdBy = Auth::user()->email;
             $updatedAt = Carbon::now();
@@ -315,7 +368,6 @@ public function index(Request $request)
             $deletedAt = null;
             $deletedBy = null;
             
-            // Manually add system_info field with the necessary information
             $insertRow['system_info'] = (object)[
                 'created_at' => new UTCDateTime($createdAt),
                 'created_by' => $createdBy,
@@ -325,30 +377,24 @@ public function index(Request $request)
                 'deleted_by' => $deletedBy
             ];
     
-            // Validate fields based on constraints
             foreach ($insertRow as $field => $value) {
                 if (isset($fieldConstraints[$field])) {
                     $constraints = $fieldConstraints[$field];
             
-                    // Check for nullable constraint
                     if ($value === null && !$constraints['nullable']) {
                         throw new \Exception("Field '$field' cannot be null.");
                     }
             
-                    // Apply default value if nullable and value is null
                     if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
                         $insertRow[$field] = $constraints['default'];
                     }
             
-                    // Check for unique constraint
                     if ($constraints['unique']) {
-                        // Check for duplicates in the existing database
                         $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
                         if ($existing) {
                             throw new \Exception("Field '$field' must be unique. The value '$value' already exists in the database.");
                         }
             
-                        // Check for duplicates within the current insert data
                         foreach ($insertData as $existingRow) {
                             if (isset($existingRow[$field]) && $existingRow[$field] === $value) {
                                 throw new \Exception("Field '$field' must be unique. The value '$value' already exists in the uploaded sheet.");
@@ -357,7 +403,6 @@ public function index(Request $request)
                     }
                 }
             
-                // Validate field type
                 if (isset($fieldTypes[$field])) {
                     $expectedType = $fieldTypes[$field];
                     if ($expectedType == 'integer' && !is_numeric($value)) {
@@ -370,7 +415,7 @@ public function index(Request $request)
                 }
             }
             
-            $insertData[] = $insertRow; // Add the validated row to the insert data
+            $insertData[] = $insertRow; 
             
         }
 
@@ -381,16 +426,29 @@ public function index(Request $request)
         }
     }
     
-
-    
-    
+    /**
+     * Handle bulk data upload and insertion into a specified collection.
+     *
+     * This method processes a bulk upload request, where an Excel or CSV file containing data is uploaded by the user.
+     * The file is validated, and the headers are checked against the collection's metadata to ensure they match. If 
+     * the headers are valid, the data is inserted into the MongoDB collection. The method also supports auto-generating 
+     * a `code` field for the documents if the `autoGenerateCode` flag is set. Additionally, it handles the inclusion 
+     * of language-specific translation fields by adding a prefix for each language (excluding 'en'). After the upload, 
+     * any temporary files are deleted, and appropriate success or error messages are returned.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing the file and additional parameters.
+     * @param string $collectionName The name of the MongoDB collection to which the data should be uploaded.
+     *
+     * @return \Illuminate\Http\RedirectResponse Redirects back with a success or error message based on the outcome of the bulk upload.
+     * 
+     * @throws \Exception If the uploaded file's headers do not match the expected collection fields or if an error occurs during data insertion.
+     */ 
     public function bulkUpload(Request $request, $collectionName)
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,csv,xls',
         ]);
     
-        // Check if the auto-generate code checkbox is selected
         $autoGenerateCode = $request->has('autoGenerateCode');
     
         $path = $request->file('file')->store('uploads');
@@ -399,7 +457,6 @@ public function index(Request $request)
     
         $uploadedHeaders = array_shift($rows);
     
-        // Get collection metadata for header validation
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
             ->findOne(['collection_name' => $collectionName]);
     
@@ -407,20 +464,16 @@ public function index(Request $request)
             return redirect()->back()->with('error', 'Collection metadata not found.');
         }
     
-        // Extract fields from collection metadata
         $fields = iterator_to_array($collectionMetadata['fields']);
 
-        // Build the expectedHeaders array from field names
         $expectedHeaders = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
 
-        // Exclude fields specified in the configuration
         $excludedFields = config('gdb_config.excluded_columns');
         $expectedHeaders = array_filter($expectedHeaders, fn($field) => !in_array($field, $excludedFields));
         $expectedHeaders = array_values($expectedHeaders); // Re-index the array
 
-        // Handle translations field and add lan_ prefix for each language, excluding 'en'
         $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
 
         foreach ($translations as $translationField) {
@@ -432,23 +485,16 @@ public function index(Request $request)
                 }
             }
         }
-
-        // Remove the original 'translations' field from expectedHeaders
         $expectedHeaders = array_filter($expectedHeaders, fn($field) => $field !== 'translations');
         $expectedHeaders = array_values($expectedHeaders); // Re-index the array
 
-        // The $expectedHeaders array now contains the processed headers
-
         $uploadedHeaders = array_filter($uploadedHeaders, fn($field) => !in_array($field, $excludedFields));
 
-
-        // Validate headers
         if ($uploadedHeaders !== $expectedHeaders) {
             return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
         }
     
         try {
-            // Pass the autoGenerateCode flag to the method
             $this->insertDataIntoCollection($collectionName, $uploadedHeaders, $rows, $autoGenerateCode);
             ActivityLogService::log('Insertion', $collectionName, 'Bulk Upload from Excel sheet');
         } catch (\Exception $e) {
@@ -462,7 +508,25 @@ public function index(Request $request)
     }
     
     
-
+    /**
+     * Download a template or data file for a specific collection.
+     *
+     * This method generates a downloadable Excel file for a specified collection in MongoDB. The file can either be 
+     * a template containing only the field headers or a full file including both the headers and data. The method 
+     * first validates the collection metadata and constructs the appropriate headers by extracting field names 
+     * from the collection's metadata. It also handles special fields, such as the 'translations' field, by adding 
+     * language-specific columns (e.g., `lan_{language_code}`). If the `includeData` flag is set to true, the method 
+     * retrieves the collection's documents, excluding deleted records, and adds the data rows to the Excel file. 
+     * The file is then returned as a download with a dynamic filename based on the collection name and whether 
+     * data is included.
+     *
+     * @param string $collectionName The name of the MongoDB collection.
+     * @param bool $includeData Flag to determine if data should be included in the export (defaults to false).
+     *
+     * @return \Maatwebsite\Excel\Excel The Excel file for download.
+     * 
+     * @throws \Exception If the collection metadata cannot be found in the database.
+     */
     public function download($collectionName, $includeData = false)
     {
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
@@ -475,12 +539,10 @@ public function index(Request $request)
         // Convert BSONArray to a regular array
         $fields = iterator_to_array($collectionMetadata['fields']);
         
-        // Extract field names for the headers
         $headers = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
     
-        // Exclude any fields specified in the config
         $excludedFields = config('gdb_config.excluded_columns');
         $headers = array_filter($headers, fn($field) => !in_array($field, $excludedFields));
         
@@ -518,7 +580,7 @@ public function index(Request $request)
                         $langCode = substr($header, 4); // Extract language code from the prefix
                         $row[] = $document['translations'][$langCode] ?? ''; // Get translation value for the language
                     } else {
-                        $row[] = $document[$header] ?? ''; // Standard field value
+                        $row[] = $document[$header] ?? ''; 
                     }
                 }
                 $excelData[] = $row;
@@ -532,12 +594,23 @@ public function index(Request $request)
     }
     
     
-
+    /**
+     * Display the activity logs for the application.
+     *
+     * This method retrieves the activity logs from the `ActivityLog` model and allows filtering by user. It uses 
+     * pagination to limit the number of logs displayed per page, based on the `per_page` parameter in the request 
+     * (with a default value from the configuration). If a specific user is selected, only logs related to that user 
+     * are shown; otherwise, all logs are displayed. The method also fetches all users from the `User` model to populate 
+     * a dropdown for user filtering. The logs are displayed in descending order based on the timestamp.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing the `per_page` and `user` filters.
+     *
+     * @return \Illuminate\View\View The view displaying the paginated activity logs, user filters, and pagination information.
+     */
     public function activityLogs(Request $request)
     {
         $perPage = $request->get('per_page', config('gdb_config.default_per_page'));
     
-        // Get selected user, if any; show all logs if none is selected
         $selectedUser = $request->get('user');
         $query = ActivityLog::orderBy('timestamp', 'desc');
     
@@ -547,7 +620,6 @@ public function index(Request $request)
     
         $logs = $query->paginate($perPage);
     
-        // Fetch all users for the dropdown (assuming User model is available)
         $users = User::all();
     
         return view('activity_logs.index', [
@@ -559,7 +631,18 @@ public function index(Request $request)
         ]);
     }
     
-    
+    /**
+     * Suggest collections from the MongoDB database based on a search query.
+     *
+     * This method retrieves a list of collection names from the `generic_data` MongoDB database, excluding collections 
+     * that are specified in the configuration's `excluded_collections`. It then filters the collections based on the 
+     * provided `search` query. If the `search` is empty, all collections (except the excluded ones) are suggested. The 
+     * collection names that match the search query (case-insensitive) are returned as suggestions in a JSON response.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing the search query.
+     *
+     * @return \Illuminate\Http\JsonResponse A JSON response containing a list of suggested collection names.
+     */
     public function suggestCollections(Request $request)
     {
         $search = $request->get('search', '');
@@ -586,6 +669,18 @@ public function index(Request $request)
         return response()->json($suggestions);
     }
 
+    /**
+     * Display the form for editing a document in a specific collection.
+     *
+     * This method retrieves a document from the specified collection by its ID, excluding soft-deleted documents. 
+     * It also fetches the metadata for the collection (field definitions) and prepares the necessary data to 
+     * display an edit form. If the collection metadata is not found, the user is redirected back with an error message.
+     *
+     * @param string $collectionName The name of the collection where the document exists.
+     * @param string $id The ID of the document to be edited.
+     *
+     * @return \Illuminate\View\View A view to display the document edit form.
+     */
     public function edit($collectionName, $id)
     {
         $document = DB::connection('mongodb')->getCollection($collectionName)
@@ -605,26 +700,37 @@ public function index(Request $request)
         return view('collections.edit', compact('collectionName', 'document', 'fieldTypes'));
     }
     
+    /**
+     * Update an existing document in a specific collection.
+     *
+     * This method updates an existing document in the specified collection by ID. The method first validates the 
+     * provided data, ensuring that it is an array. It retrieves the existing document and its translations to preserve 
+     * any unchanged translation fields. Then, it updates the document, including the necessary system fields for tracking 
+     * updates (like `updated_at` and `updated_by`). After updating, the operation is logged and the user is redirected 
+     * back with a success message.
+     *
+     * @param \Illuminate\Http\Request $request The incoming request containing the data to update.
+     * @param string $collectionName The name of the collection to update the document in.
+     * @param string $id The ID of the document to update.
+     *
+     * @return \Illuminate\Http\RedirectResponse Redirects back to the collection view with a success message.
+     */
     public function update(Request $request, $collectionName, $id)
     {
-        // Validate that data is provided as an array
         $request->validate([
             'data' => 'required|array',
         ]);
     
         $data = $request->input('data');
     
-        // Retrieve the existing document
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
             ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
     
-        // Extract existing translations to preserve unchanged ones
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
             ->findOne(['collection_name' => $collectionName]);
     
         $fieldsArray = iterator_to_array($collectionMetadata['fields']);
     
-        // Check if 'translations' exists in the field names
         if (in_array('translations', array_column($fieldsArray, 'name'))) {
             $existingTranslations = $documentBefore['translations'] ?? [];
     
@@ -639,25 +745,20 @@ public function index(Request $request)
                 }
             }
     
-            // Add translations back into the data array
             $data['translations'] = $translations;
         }
     
-        // Add system_info fields for updated_at and updated_by
         $data['system_info.updated_at'] = new \MongoDB\BSON\UTCDateTime(now());
         $data['system_info.updated_by'] = Auth::user()->email;
     
-        // Perform the update operation
         DB::connection('mongodb')->getCollection($collectionName)
             ->updateOne(
                 ['_id' => new \MongoDB\BSON\ObjectId($id)],
                 ['$set' => $data]
             );
     
-        // Log the update operation
         ActivityLogService::log('update', $collectionName, $documentBefore);
     
-        // Redirect back with success message
         return redirect()->route('collections.show', $collectionName)
             ->with('success', 'Document updated successfully.');
     }
@@ -666,15 +767,26 @@ public function index(Request $request)
 
     
 
-    // destroy function
+    /**
+     * Soft delete a document from a specific collection.
+     *
+     * This method performs a soft delete on a document in the specified collection by marking the `is_deleted` 
+     * field as `1`. It also adds deletion metadata, including the `deleted_at` timestamp and the `deleted_by` 
+     * user. If the document is successfully found and marked as deleted, an activity log is created to record 
+     * the deletion action.
+     *
+     * @param string $collectionName The name of the collection to delete the document from.
+     * @param string $id The ID of the document to delete.
+     *
+     * @return \Illuminate\Http\RedirectResponse Redirects back to the collection view with a success message.
+     */
+
     public function destroy($collectionName, $id)
     {
-        // Retrieve the document before making changes
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
             ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
 
         if ($documentBefore) {
-            // Update the document to mark it as deleted, and add deletion metadata
             DB::connection('mongodb')->getCollection($collectionName)
                 ->updateOne(
                     ['_id' => new \MongoDB\BSON\ObjectId($id)],
@@ -687,22 +799,31 @@ public function index(Request $request)
                     ]
                 );
 
-            // Log the delete activity
             ActivityLogService::log('delete', $collectionName, $documentBefore);
         }
 
         return redirect()->route('collections.show', $collectionName)->with('success', 'Document deleted successfully.');
     }
 
-    // restore function
+    /**
+     * Restore a soft-deleted document from a specific collection.
+     *
+     * This method restores a soft-deleted document in the specified collection by setting the `is_deleted` 
+     * field to `0` and resetting the `deleted_at` and `deleted_by` fields. If the document is successfully 
+     * restored, an activity log is created to record the restoration action.
+     *
+     * @param \Illuminate\Http\Request $request The request object.
+     * @param string $collectionName The name of the collection where the document is located.
+     * @param string $id The ID of the document to restore.
+     *
+     * @return \Illuminate\Http\RedirectResponse Redirects back to the collection view with a success message.
+     */
     public function restore(Request $request, $collectionName, $id)
     {
-        // Retrieve the document before making changes
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
             ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id)]);
 
         if ($documentBefore) {
-            // Update the document to mark it as restored, and reset deletion metadata
             DB::connection('mongodb')->getCollection($collectionName)
                 ->updateOne(
                     ['_id' => new \MongoDB\BSON\ObjectId($id)],
@@ -715,7 +836,6 @@ public function index(Request $request)
                     ]
                 );
 
-            // Log the restore activity
             ActivityLogService::log('restore', $collectionName, $documentBefore);
         }
 
