@@ -233,93 +233,6 @@ public function index(Request $request)
     }
     
     
-    
-    
-    // private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
-    // {
-    //     $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
-    //     $fieldDefinitions = $collectionMetadata ? $collectionMetadata->fields : [];
-        
-    //     $fieldTypes = [];
-    //     $fieldConstraints = [];
-    //     foreach ($fieldDefinitions as $field) {
-    //         $fieldTypes[$field['name']] = $field['type'];
-    //         $fieldConstraints[$field['name']] = [
-    //             'unique' => $field['unique'] ?? false,
-    //             'nullable' => $field['nullable'] ?? false,
-    //             'default' => $field['default'] ?? null,
-    //         ];
-    //     }
-        
-    //     $insertData = [];
-    //     $nextCode = 0;
-        
-    //     if ($autoGenerateCode) {
-    //         // Get the current count of documents in the collection to set the starting point for code generation
-    //         $existingCount = DB::connection('mongodb')->getCollection($collectionName)->count();
-    //         $nextCode = $existingCount + 1; // Start from the length of the collection
-    //     }
-        
-    //     foreach ($rows as $row) {
-    //         $insertRow = array_combine($headers, $row);
-    //         $insertRow['is_deleted'] = 0;
-            
-    //         // Handle Auto Generate Code
-    //         if ($autoGenerateCode && !isset($insertRow['code'])) {
-    //             $insertRow['code'] = (string) $nextCode; // Assign the generated code
-    //             $nextCode++; // Increment the code for the next entry
-    //         }
-    
-    //         // Handle timestamps
-    //         $createdAt = Carbon::now();
-    //         $createdBy = Auth::user()->email;
-    //         $updatedAt = Carbon::now();
-    //         $updatedBy = Auth::user()->email;
-    //         $deletedAt = null
-    //         $deletedBy = null
-    //         $insertRow['created_at'] = new UTCDateTime($createdAt);
-    //         $insertRow['updated_at'] = new UTCDateTime($updatedAt);
-            
-    //         // Validate fields based on constraints
-    //         foreach ($insertRow as $field => $value) {
-    //             if (isset($fieldConstraints[$field])) {
-    //                 $constraints = $fieldConstraints[$field];
-        
-    //                 if ($value === null && !$constraints['nullable']) {
-    //                     throw new \Exception("Field '$field' cannot be null.");
-    //                 }
-        
-    //                 if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
-    //                     $insertRow[$field] = $constraints['default'];
-    //                 }
-        
-    //                 if ($constraints['unique']) {
-    //                     $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
-    //                     if ($existing) {
-    //                         throw new \Exception("Field '$field' must be unique. The value '$value' already exists.");
-    //                     }
-    //                 }
-    //             }
-        
-    //             if (isset($fieldTypes[$field])) {
-    //                 $expectedType = $fieldTypes[$field];
-    //                 if ($expectedType == 'integer' && !is_numeric($value)) {
-    //                     throw new \Exception("Field '$field' must be an integer.");
-    //                 } elseif ($expectedType == 'boolean' && !is_bool($value)) {
-    //                     throw new \Exception("Field '$field' must be a boolean.");
-    //                 } elseif ($expectedType == 'date' && !$value instanceof UTCDateTime) {
-    //                     throw new \Exception("Field '$field' must be a valid date.");
-    //                 }
-    //             }
-    //         }
-        
-    //         $insertData[] = $insertRow;
-    //     }
-        
-    //     if (!empty($insertData)) {
-    //         DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
-    //     }
-    // }
     private function insertDataIntoCollection($collectionName, array $headers, array $rows, $autoGenerateCode = false)
     {
         $collectionMetadata = CollectionMetadata::where('collection_name', $collectionName)->first();
@@ -410,23 +323,35 @@ public function index(Request $request)
             foreach ($insertRow as $field => $value) {
                 if (isset($fieldConstraints[$field])) {
                     $constraints = $fieldConstraints[$field];
-        
+            
+                    // Check for nullable constraint
                     if ($value === null && !$constraints['nullable']) {
                         throw new \Exception("Field '$field' cannot be null.");
                     }
-        
+            
+                    // Apply default value if nullable and value is null
                     if ($value === null && $constraints['nullable'] && $constraints['default'] !== null) {
                         $insertRow[$field] = $constraints['default'];
                     }
-        
+            
+                    // Check for unique constraint
                     if ($constraints['unique']) {
+                        // Check for duplicates in the existing database
                         $existing = DB::connection('mongodb')->getCollection($collectionName)->findOne([$field => $value]);
                         if ($existing) {
-                            throw new \Exception("Field '$field' must be unique. The value '$value' already exists.");
+                            throw new \Exception("Field '$field' must be unique. The value '$value' already exists in the database.");
+                        }
+            
+                        // Check for duplicates within the current insert data
+                        foreach ($insertData as $existingRow) {
+                            if (isset($existingRow[$field]) && $existingRow[$field] === $value) {
+                                throw new \Exception("Field '$field' must be unique. The value '$value' already exists in the uploaded sheet.");
+                            }
                         }
                     }
                 }
-        
+            
+                // Validate field type
                 if (isset($fieldTypes[$field])) {
                     $expectedType = $fieldTypes[$field];
                     if ($expectedType == 'integer' && !is_numeric($value)) {
@@ -438,9 +363,12 @@ public function index(Request $request)
                     }
                 }
             }
-    
-            $insertData[] = $insertRow;
+            
+            $insertData[] = $insertRow; // Add the validated row to the insert data
+            
         }
+
+
     
         if (!empty($insertData)) {
             DB::connection('mongodb')->getCollection($collectionName)->insertMany($insertData);
@@ -473,19 +401,45 @@ public function index(Request $request)
             return redirect()->back()->with('error', 'Collection metadata not found.');
         }
     
+        // Extract fields from collection metadata
         $fields = iterator_to_array($collectionMetadata['fields']);
+
+        // Build the expectedHeaders array from field names
         $expectedHeaders = array_map(function ($field) {
             return $field['name']; // Extract field names
         }, $fields);
-        
-        $excludedFields = config('gdb_config.excluded_columns');
-        $uploadedHeaders = array_filter($uploadedHeaders, fn($field) => !in_array($field, $excludedFields));
-        $expectedHeaders = array_filter($expectedHeaders, fn($field) => !in_array($field, $excludedFields));
 
-        // // Validate headers
-        // if ($uploadedHeaders !== $expectedHeaders) {
-        //     return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
-        // }
+        // Exclude fields specified in the configuration
+        $excludedFields = config('gdb_config.excluded_columns');
+        $expectedHeaders = array_filter($expectedHeaders, fn($field) => !in_array($field, $excludedFields));
+        $expectedHeaders = array_values($expectedHeaders); // Re-index the array
+
+        // Handle translations field and add lan_ prefix for each language, excluding 'en'
+        $translations = array_filter($fields, fn($field) => $field['name'] == 'translations');
+
+        foreach ($translations as $translationField) {
+            if (isset($translationField['fields'])) {
+                foreach ($translationField['fields'] as $language) {
+                    if ($language['name'] !== 'en') {
+                        $expectedHeaders[] = 'lan_' . $language['name']; // Add prefix for each language
+                    }
+                }
+            }
+        }
+
+        // Remove the original 'translations' field from expectedHeaders
+        $expectedHeaders = array_filter($expectedHeaders, fn($field) => $field !== 'translations');
+        $expectedHeaders = array_values($expectedHeaders); // Re-index the array
+
+        // The $expectedHeaders array now contains the processed headers
+
+        $uploadedHeaders = array_filter($uploadedHeaders, fn($field) => !in_array($field, $excludedFields));
+
+
+        // Validate headers
+        if ($uploadedHeaders !== $expectedHeaders) {
+            return redirect()->back()->with('error', 'The uploaded sheet headers do not match the collection fields.');
+        }
     
         try {
             // Pass the autoGenerateCode flag to the method
@@ -556,7 +510,7 @@ public function index(Request $request)
                 foreach ($headers as $header) {
                     if (strpos($header, 'lan_') === 0) {
                         $langCode = substr($header, 4); // Extract language code from the prefix
-                        $row[] = $document['translation'][$langCode] ?? ''; // Get translation value for the language
+                        $row[] = $document['translations'][$langCode] ?? ''; // Get translation value for the language
                     } else {
                         $row[] = $document[$header] ?? ''; // Standard field value
                     }
@@ -660,30 +614,32 @@ public function index(Request $request)
     
         // Extract existing translations to preserve unchanged ones
         $collectionMetadata = DB::connection('mongodb')->getCollection('collection_metadata')
-        ->findOne(['collection_name' => $collectionName]);
-
+            ->findOne(['collection_name' => $collectionName]);
+    
         $fieldsArray = iterator_to_array($collectionMetadata['fields']);
-
+    
         // Check if 'translations' exists in the field names
         if (in_array('translations', array_column($fieldsArray, 'name'))) {
-                $existingTranslations = $documentBefore['translations'] ?? [];
-        
+            $existingTranslations = $documentBefore['translations'] ?? [];
+    
             // Extract translations from lan_* fields
-                $translations = $existingTranslations; // Start with existing translations
-            
-                foreach ($data as $key => $value) {
-                    if (str_starts_with($key, 'lan_')) {
-                        $langCode = substr($key, 4); // Remove 'lan_' prefix
-                        $translations[$langCode] = $value; // Add/overwrite the translation
-                        unset($data[$key]); // Remove the lan_* field from main data
-                    }
+            $translations = $existingTranslations; // Start with existing translations
+    
+            foreach ($data as $key => $value) {
+                if (str_starts_with($key, 'lan_')) {
+                    $langCode = substr($key, 4); // Remove 'lan_' prefix
+                    $translations[$langCode] = $value; // Add/overwrite the translation
+                    unset($data[$key]); // Remove the lan_* field from main data
                 }
-
-            
-            
-                // Add translations back into the data array
-                $data['translations'] = $translations;
+            }
+    
+            // Add translations back into the data array
+            $data['translations'] = $translations;
         }
+    
+        // Add system_info fields for updated_at and updated_by
+        $data['system_info.updated_at'] = new \MongoDB\BSON\UTCDateTime(now());
+        $data['system_info.updated_by'] = Auth::user()->email;
     
         // Perform the update operation
         DB::connection('mongodb')->getCollection($collectionName)
@@ -700,42 +656,64 @@ public function index(Request $request)
             ->with('success', 'Document updated successfully.');
     }
     
+    
 
     
 
+    // destroy function
     public function destroy($collectionName, $id)
     {
+        // Retrieve the document before making changes
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
+            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id), 'is_deleted' => 0]);
 
-        DB::connection('mongodb')->getCollection($collectionName)
-            ->updateOne(['_id' => new \MongoDB\BSON\ObjectId($id)], ['$set' => ['is_deleted' => 1]]);
+        if ($documentBefore) {
+            // Update the document to mark it as deleted, and add deletion metadata
+            DB::connection('mongodb')->getCollection($collectionName)
+                ->updateOne(
+                    ['_id' => new \MongoDB\BSON\ObjectId($id)],
+                    [
+                        '$set' => [
+                            'is_deleted' => 1,
+                            'system_info.deleted_at' => new \MongoDB\BSON\UTCDateTime(now()),
+                            'system_info.deleted_by' => Auth::user()->email,
+                        ]
+                    ]
+                );
 
-        ActivityLogService::log('delete', $collectionName, $documentBefore);
+            // Log the delete activity
+            ActivityLogService::log('delete', $collectionName, $documentBefore);
+        }
 
         return redirect()->route('collections.show', $collectionName)->with('success', 'Document deleted successfully.');
     }
 
-
+    // restore function
     public function restore(Request $request, $collectionName, $id)
     {
-
+        // Retrieve the document before making changes
         $documentBefore = DB::connection('mongodb')->getCollection($collectionName)
-                            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id)]);
-        
-        DB::connection('mongodb')->getCollection($collectionName)
-        ->updateOne(
-            ['_id' => new \MongoDB\BSON\ObjectId($id)],
-            [
-                '$set' => [
-                    'is_deleted' => 0, 
-                    // 'updated_at' => new UTCDateTime(Carbon::now()), 
-                ]
-            ]
-        );
+            ->findOne(['_id' => new \MongoDB\BSON\ObjectId($id)]);
 
-        ActivityLogService::log('restore', $collectionName, $documentBefore);
+        if ($documentBefore) {
+            // Update the document to mark it as restored, and reset deletion metadata
+            DB::connection('mongodb')->getCollection($collectionName)
+                ->updateOne(
+                    ['_id' => new \MongoDB\BSON\ObjectId($id)],
+                    [
+                        '$set' => [
+                            'is_deleted' => 0,
+                            'system_info.deleted_at' => null,
+                            'system_info.deleted_by' => null,
+                        ]
+                    ]
+                );
+
+            // Log the restore activity
+            ActivityLogService::log('restore', $collectionName, $documentBefore);
+        }
 
         return redirect()->route('collections.show', $collectionName)->with('success', 'Document restored successfully.');
     }
+
 }
