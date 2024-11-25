@@ -94,9 +94,15 @@ public function index(Request $request)
         ]);
 
         $collectionName = strtolower(str_replace(' ', '_', $validated['collection_name']));
-        $fields = $validated['fields'];
+        // Transform field names to lowercase with underscores
+        $fields = array_map(function ($field) {
+            $field['name'] = strtolower(str_replace(' ', '_', $field['name']));
+            return $field;
+        }, $validated['fields']);
     
         $translations = $request->translations ?? []; 
+
+
 
         // Add default fields to the fields array
         $defaultFields = [
