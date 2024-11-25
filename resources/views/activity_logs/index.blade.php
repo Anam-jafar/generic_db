@@ -56,6 +56,7 @@
             </tbody>
         </table>
 
+        @if($pagination['total'] > 0)
         <!-- Pagination Controls -->
         <div class="collection-pagination">
             <div class="pagination-info">
@@ -81,5 +82,6 @@
                 </select>
             </div>
         </div>
+        @endif
     </div>
 @endsection
