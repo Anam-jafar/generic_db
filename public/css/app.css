@@ -28,6 +28,7 @@
     width: 80%;
     margin: 0 auto;
     padding: 20px;
+    flex:1;
 }
 
 /* Table Styles */
@@ -119,3 +120,4 @@
 .custom-users-row:hover {
     background-color: #f9f9f9;
 }
+

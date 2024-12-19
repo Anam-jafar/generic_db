@@ -5,6 +5,7 @@
     width: 80%;
     margin: 0 auto;
     padding: 20px;
+    flex:1;
 }
 
 .activity-log-table {

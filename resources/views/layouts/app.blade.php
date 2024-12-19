@@ -19,7 +19,7 @@
 
 </head>
 <body>
-@if(Auth::check())
+    @if(Auth::check())
     <nav class="navbar navbar-expand-lg navbar-light">
         <a class="navbar-brand logo" href="{{ route('collections.index') }}">Generic DB.</a>
         <a class="navbar-brand link" href="{{ route('collections.create') }}">Add New Object</a>
@@ -51,8 +51,18 @@
     </nav>
     @endif
 
-
         @yield('content')
+
+    <!-- Footer -->
+    <footer class="text-muted text-center mt-6">
+        <div class="container">
+            <p class="mb-0">
+                <strong>Awfatech</strong> &mdash; This product is for <em>internal use only</em>. All rights reserved &copy; {{ date('Y') }}.
+            </p>
+        </div>
+    </footer>
+
+
     
 </body>
 
